@@ -2,3 +2,8 @@
 .env
 .idea
 piper-voices
+
+/develop.php
+/main.php
+/deploy-application-develop.exp
+/deploy-application-main.exp
