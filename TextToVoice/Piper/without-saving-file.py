@@ -5,18 +5,42 @@ import wave
 import numpy as np
 from io import BytesIO
 from piper import PiperVoice
+import os
+from dotenv import load_dotenv
 sys.stdout.reconfigure(encoding='utf-8')
 
-# --- تنظیمات ---
-model_type="amir"
-model_type1="ganji"
-model_type1="ganji_adabi"
-model_type1="gyro"
-model_type1="reza_ibrahim"
+def load_root_env():
+    current = os.path.dirname(os.path.abspath(__file__))
+    while True:
+        if os.path.exists(os.path.join(current, '.env')):
+            load_dotenv(os.path.join(current, '.env'))
+            return
+        parent = os.path.dirname(current)
+        if parent == current:
+            raise FileNotFoundError("فایل .env در روت پروژه پیدا نشد!")
+        current = parent
 
-MODEL_PATH = rf"D:\work\python\piper-voices\fa\fa_IR\{model_type}\medium\fa_IR-{model_type}-medium.onnx"  # مرد
+load_root_env()  # فقط یک بار
+PIPER_VOICE_PATH = os.getenv("PIPER_VOICE_PATH")
+
+
+lang = 'fa'
+lang_model = 'fa_IR'
+model_type="amir"
+
+select_lang = sys.argv[2] if len(sys.argv) > 2 else ""
+
+match select_lang:
+    case 'en':
+        lang = 'en'
+        lang_model = 'en_US'
+        model_type="hfc_female"
+MODEL_TYPE = os.getenv("MODEL_TYPE")
+
+MODEL_PATH = rf"{PIPER_VOICE_PATH}\{lang}\{lang_model}\{model_type}\medium\{lang_model}-{model_type}-medium.onnx"  # مرد
 
 SAMPLE_RATE = 22050
+
 
 # --- چک مدل ---
 if not __import__('os').path.exists(MODEL_PATH):
@@ -27,7 +51,14 @@ if not __import__('os').path.exists(MODEL_PATH):
 voice = PiperVoice.load(MODEL_PATH)
 
 # --- متن ---
-text = sys.argv[1] if len(sys.argv) > 1 else "سلام! این تست است."
+text = sys.argv[1] if len(sys.argv) > 1 else ""
+
+
+if not text:
+    print(f"text not found", file=sys.stderr)
+    sys.exit(1)
+
+
 text = text.replace(".", "، ").replace("؟", "").replace("!", "")
 
 # --- تولید صدا ---
