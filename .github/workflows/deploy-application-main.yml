@@ -1,0 +1,11 @@
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    name: Trigger Site Rebuild
+    runs-on: ubuntu-latest
+    steps:
+      - name: cURL request
+        run: curl  https://python.afraitn.net/main/main.php
