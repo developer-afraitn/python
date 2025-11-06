@@ -14,8 +14,9 @@ model_type1="ganji_adabi"
 model_type1="gyro"
 model_type1="reza_ibrahim"
 
-model_path = rf"D:\work\python\piper-voices\fa\fa_IR\{model_type}\medium\fa_IR-{model_type}-medium.onnx"  # مرد
-# model_path = r"C:\piper_models\fa_IR-gyro-medium.onnx"  # زن
+#model_path = rf"D:\work\python\piper-voices\fa\fa_IR\{model_type}\medium\fa_IR-{model_type}-medium.onnx"
+model_path = rf"/home/tourgardan/domains/python/dev/piper-voices/fa/fa_IR/{model_type}/medium/fa_IR-{model_type}-medium.onnx"
+
 
 if not os.path.exists(model_path):
     print(f"خطا: فایل پیدا نشد! {model_path}")

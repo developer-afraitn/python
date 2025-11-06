@@ -55,7 +55,8 @@ match select_lang:
         else:
             model_type = 'hfc_female'
 
-MODEL_PATH = rf"{PIPER_VOICE_PATH}\{lang}\{lang_model}\{model_type}\medium\{lang_model}-{model_type}-medium.onnx"
+#MODEL_PATH = rf"{PIPER_VOICE_PATH}\{lang}\{lang_model}\{model_type}\medium\{lang_model}-{model_type}-medium.onnx"
+MODEL_PATH = rf"{PIPER_VOICE_PATH}/{lang}/{lang_model}/{model_type}/medium/{lang_model}-{model_type}-medium.onnx"
 
 # --- چک مدل ---
 if not os.path.exists(MODEL_PATH):
