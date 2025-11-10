@@ -53,6 +53,10 @@ except:
 lang = 'fa'
 lang_model = 'fa_IR'
 model_type = "amir"
+model_type = "reza_ibrahim"
+model_type = "ganji_adabi"
+model_type = "ganji"
+model_type = "gyro"
 
 if select_lang == 'en':
     lang = 'en'
