@@ -7,3 +7,12 @@ piper-voices
 /main.php
 /deploy-application-develop.exp
 /deploy-application-main.exp
+/outputs/*
+
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.git/
