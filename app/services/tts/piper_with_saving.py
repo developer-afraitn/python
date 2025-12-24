@@ -3,7 +3,7 @@ import wave
 import numpy as np
 from piper import PiperVoice
 
-from app.config import settings
+from app.settings import settings
 
 
 class PiperTTSFileService:

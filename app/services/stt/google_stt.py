@@ -1,6 +1,6 @@
 from pathlib import Path
 import speech_recognition as sr
-from app.config import settings
+from app.settings import settings
 
 class GoogleSTTService:
     def transcribe_under_base(self, rel_path: str, lang: str = "fa") -> dict:

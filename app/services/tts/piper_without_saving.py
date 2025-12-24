@@ -6,7 +6,7 @@ import librosa
 from piper import PiperVoice
 from pathlib import Path
 
-from app.config import settings
+from app.settings import settings
 
 
 class PiperTTSService:

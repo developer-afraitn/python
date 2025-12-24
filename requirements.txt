@@ -3,10 +3,30 @@ uvicorn[standard]
 pydantic-settings
 python-dotenv
 
-numpy
 librosa
 soundfile
 
 piper-tts
 pydub
 SpeechRecognition
+
+# --- DB (Postgres) ---
+sqlalchemy #==2.0.36
+psycopg2-binary #==2.9.9
+psycopg[binary] #==3.2.3
+asyncpg
+redis
+
+# --- Core (Persian normalization) ---
+hazm #==0.10.0
+
+# --- Faster keyword matching (optional but recommended) ---
+flashtext #==2.7
+
+# --- ML fallback (optional; enable when you train/use a sklearn model) ---
+numpy #==2.1.3
+scipy #==1.14.1
+scikit-learn #==1.5.2
+
+
+structlog
