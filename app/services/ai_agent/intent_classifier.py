@@ -9,14 +9,11 @@ from app.logging_config import get_logger
 
 from app.storage.repo.messageHistoryRepo import MessageHistoryRepo
 
+# --- Optional: Persian normalization (Hazm) ---
+from hazm import Normalizer
 
 logger = get_logger("ai-agent")
 history_repo = MessageHistoryRepo()
-# --- Optional: Persian normalization (Hazm) ---
-try:
-    from hazm import Normalizer  # type: ignore
-except Exception:
-    Normalizer = None
 
 
 class Intent(str, Enum):
@@ -89,12 +86,7 @@ class IntentClassifier:
         self.vectorizer = vectorizer
         self.history_window = history_window
 
-        self.normalizer = None
-        if Normalizer is not None:
-            try:
-                self.normalizer = Normalizer()
-            except Exception:
-                self.normalizer = None
+        self.normalizer = Normalizer()
 
     def predict(self, message: str, history: List[str] | Deque[str] | None = None) -> str:
         """
@@ -132,11 +124,7 @@ class IntentClassifier:
     def _normalize(self, text: str) -> str:
         text = text.strip()
         text = re.sub(r"\s+", " ", text)
-        if self.normalizer is not None:
-            try:
-                text = self.normalizer.normalize(text)
-            except Exception:
-                pass
+        text = self.normalizer.normalize(text)
         return text
 
     # --------- Rule-based engine ---------
