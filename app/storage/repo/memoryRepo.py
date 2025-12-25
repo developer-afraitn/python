@@ -1,6 +1,6 @@
-from sqlalchemy import select
-from app.core.db import get_session
-from app.models.memoryModel import Memory
+from sqlalchemy import select, func
+from app.storage.db import get_session
+from app.storage.models.memoryModel import Memory
 
 
 class MemoryRepo:
@@ -18,7 +18,8 @@ class MemoryRepo:
             if row is None:
                 return None
 
-            row.information = information  # updated_at با onupdate خودش آپدیت میشه
+            row.information = information
+            row.updated_at = func.now()
             db.add(row)
             db.flush()
             db.refresh(row)

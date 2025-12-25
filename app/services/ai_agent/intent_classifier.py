@@ -7,7 +7,7 @@ from collections import deque
 import re
 from app.logging_config import get_logger
 
-from app.repo.messageHistoryRepo import MessageHistoryRepo
+from app.storage.repo.messageHistoryRepo import MessageHistoryRepo
 
 
 logger = get_logger("ai-agent")

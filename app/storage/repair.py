@@ -1,9 +1,9 @@
 from sqlalchemy import inspect
-from app.core.db import engine
+from app.storage.db import engine
 
 # مدل‌هایی که می‌خوای اگر پاک شدند برگردند
-from app.models.messageHistoryModel import MessageHistory
-from app.models.memoryModel import Memory
+from app.storage.models.messageHistoryModel import MessageHistory
+from app.storage.models.memoryModel import Memory
 
 def repair_missing_tables():
     insp = inspect(engine)

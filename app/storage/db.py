@@ -7,7 +7,14 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+DB_TIMEZONE = os.getenv("DB_TIMEZONE", "Asia/Tehran")
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    connect_args={"options": f"-c timezone={DB_TIMEZONE}"},
+)
+
 SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,

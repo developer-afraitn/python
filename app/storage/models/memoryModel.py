@@ -1,7 +1,7 @@
-from sqlalchemy import String, Integer, DateTime, JSON, UniqueConstraint
+from sqlalchemy import String, Integer, DateTime, JSON, UniqueConstraint, func
 from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column
-from app.core.db import Base
+from app.storage.db import Base
 
 
 class Memory(Base):
@@ -25,13 +25,13 @@ class Memory(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
+        default=func.now(),
         nullable=False
     )
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=func.now(),
+        onupdate=func.now(),
         nullable=False
     )

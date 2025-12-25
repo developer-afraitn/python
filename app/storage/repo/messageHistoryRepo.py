@@ -1,6 +1,6 @@
 from sqlalchemy import select, desc
-from app.core.db import get_session
-from app.models.messageHistoryModel import MessageHistory
+from app.storage.db import get_session
+from app.storage.models.messageHistoryModel import MessageHistory
 
 class MessageHistoryRepo:
     def create(self, *, user_id: str, content: str) -> MessageHistory:
@@ -22,7 +22,7 @@ class MessageHistoryRepo:
                 select(MessageHistory.content)
                 .where(MessageHistory.user_id == user_id)
                 .where(MessageHistory.role == "user")
-                .order_by(desc(MessageHistory.created_at))
+                .order_by(desc(MessageHistory.id))
                 .limit(limit)
             )
             rows = db.execute(stmt).all()

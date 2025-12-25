@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional, Tuple
 
-from app.repo.memoryRepo import MemoryRepo
+from app.storage.repo.memoryRepo import MemoryRepo
 from app.logging_config import get_logger
 
 logger = get_logger("ai-agent")
@@ -19,7 +19,7 @@ class HotelFilterState:
     check_out: Optional[date] = None
 
 
-class SimpleHotelFilterUpdater:
+class HotelFilter:
 
     # --- ساده‌ترین استخراج ---
     CITIES = ("تهران", "مشهد", "شیراز", "اصفهان", "کیش", "تبریز", "رشت", "یزد", "قم", "اهواز")
