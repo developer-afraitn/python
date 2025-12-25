@@ -5,9 +5,11 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional, Tuple
 
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
+from app.repo.memoryRepo import MemoryRepo
+from app.logging_config import get_logger
 
+logger = get_logger("ai-agent")
+memory_repo = MemoryRepo()
 
 @dataclass
 class HotelFilterState:
@@ -18,71 +20,54 @@ class HotelFilterState:
 
 
 class SimpleHotelFilterUpdater:
-    """
-    DB info (hardcoded):
-      POSTGRES_DB=appdb
-      POSTGRES_USER=appuser
-      POSTGRES_PASSWORD=apppass
-      host=postgres
-      port=5432
-
-    استفاده:
-        updater = SimpleHotelFilterUpdater()
-        final_filter = updater(user_id="123", message="هتل در مشهد از 2025-12-28 تا 2025-12-30")
-    """
-
-    # --- Hardcoded DB URL (طبق اطلاعات شما) ---
-    DATABASE_URL = "postgresql+psycopg://appuser:apppass@postgres:5432/appdb"
 
     # --- ساده‌ترین استخراج ---
     CITIES = ("تهران", "مشهد", "شیراز", "اصفهان", "کیش", "تبریز", "رشت", "یزد", "قم", "اهواز")
     DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 
-    # --- ORM داخل کلاس ---
-    class Base(DeclarativeBase):
-        pass
+    def memory(self, user_id:str):
+        memory=memory_repo.find(user_id=user_id)
+        if memory is not None:
+            self.user_memory_id=memory.id
+            return memory.information
+        else : 
+            return None;
 
-    class UserHotelFilter(Base):
-        __tablename__ = "user_hotel_filters"
+    def __init__(self):
+        self.user_memory_id = None
 
-        user_id: Mapped[str] = mapped_column(primary_key=True)
-        city: Mapped[Optional[str]]
-        check_in: Mapped[Optional[date]]
-        check_out: Mapped[Optional[date]]
-
-    def __init__(self) -> None:
-        self.engine = create_engine(self.DATABASE_URL, future=True)
-        # اگر جدول را از قبل با migration ساختی، می‌تونی این خط را حذف کنی
-        self.Base.metadata.create_all(self.engine)
-
-    def __call__(self, user_id: str, message: str) -> HotelFilterState:
+    def handle(self, user_id: str, message: str):
         new_city = self._extract_city(message)
         new_check_in, new_check_out = self._extract_dates(message)
 
-        with Session(self.engine) as db:
-            row = db.execute(
-                select(self.UserHotelFilter).where(self.UserHotelFilter.user_id == user_id)
-            ).scalar_one_or_none()
+        information = self.memory(user_id)
+        if information is None:
+            information={
+                'city' : None,
+                'check_in' : None,
+                'check_out' : None,
+            }
 
-            if row is None:
-                row = self.UserHotelFilter(user_id=user_id, city=None, check_in=None, check_out=None)
-                db.add(row)
+        if new_city is not None:
+            information["city"]= new_city
+        if new_check_in is not None:
+            information["check_in"] = new_check_in
+        if new_check_out is not None:
+            information["check_out"] = new_check_out
 
-            if new_city is not None:
-                row.city = new_city
-            if new_check_in is not None:
-                row.check_in = new_check_in
-            if new_check_out is not None:
-                row.check_out = new_check_out
+        if information.get("check_in") is not None:
+            information["check_in"] = information["check_in"].isoformat()
 
-            db.commit()
+        if information.get("check_out") is not None:
+            information["check_out"] = information["check_out"].isoformat()
 
-            return HotelFilterState(
-                user_id=row.user_id,
-                city=row.city,
-                check_in=row.check_in,
-                check_out=row.check_out,
-            )
+
+        if self.user_memory_id :
+            memory_repo.update(id=self.user_memory_id,information=information)
+        else :
+            memory_repo.create(user_id=user_id,information=information)
+
+        return information
 
     def _extract_city(self, message: str) -> Optional[str]:
         for c in self.CITIES:

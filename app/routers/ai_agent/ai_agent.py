@@ -28,8 +28,8 @@ def ai_agent(payload: IntentRequest):
     intent = intent_service.detect_intent(user_id=payload.user_id, message=payload.message)
     match intent:
         case 'filter':
-            svc = SimpleHotelFilterUpdater()
-            filter = svc(user_id=payload.user_id, message=payload.message)
+            hotel_filter = SimpleHotelFilterUpdater()
+            filter = hotel_filter.handle(user_id=payload.user_id, message=payload.message)
             return filter
             #return {"status":200,"message":"OK","detail":"null","data":{"type":"hotel-search","message":"فیلتر برای شهر کیش با تاریخ ورود چهارشنبه 3 دی و تاریخ خروج شنبه 6 دی 1404 ، 1 نفر بزرگسال اعمال شد","result":{"filters":{"city_name":"کیش","check_in":"2025-12-24","check_out":"2025-12-27","passengers":[{"adult":1,"child":[]}],"city_id":760013,"limit":3,"page":1,"hotel":[]}},"requests":["هتل های 4 و 5 ستاره رو برام فیلتر کن","قیمت بین 10 میلیون و 18 میلیون رو برام فیلتر کن","تاریخ ورود رو به پنج شنبه 4 دی تغییر بده","تاریخ ورود رو به جمعه 5 دی تغییر بده","دوتا اتاق میخوام.اتاق دوم سه نفر بزرگسال","شهر اصفهان رو برام فیلتر کن"]},"additional":[],"parameters":[]}
         case 'comparison':

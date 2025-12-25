@@ -5,12 +5,13 @@ from enum import Enum
 from typing import List, Optional, Tuple, Deque
 from collections import deque
 import re
-
-from app.config.db import SessionLocal
-from app.config.repo import add_user_message, get_recent_user_history
 from app.logging_config import get_logger
 
+from app.repo.messageHistoryRepo import MessageHistoryRepo
+
+
 logger = get_logger("ai-agent")
+history_repo = MessageHistoryRepo()
 # --- Optional: Persian normalization (Hazm) ---
 try:
     from hazm import Normalizer  # type: ignore
@@ -255,18 +256,15 @@ class IntentService:
         self.history_limit = history_limit
 
     def detect_intent(self, user_id: str, message: str) -> str:
-        db = SessionLocal()
-        try:
-            history = get_recent_user_history(db=db, user_id=user_id, limit=self.history_limit)
-            intent = self.classifier.predict(message=message, history=history)
-            logger.info(
-                "intent_detected",
-                intent=intent,
-                user_id=user_id,
-                message=message,
-                history=history,
-            )
-            add_user_message(db=db, user_id=user_id, content=message)
-            return intent
-        finally:
-            db.close()
+
+        history =history_repo.get_recent_user_history(user_id=user_id, limit=self.history_limit)
+        intent = self.classifier.predict(message=message, history=history)
+        logger.info(
+            "intent_detected",
+            intent=intent,
+            user_id=user_id,
+            message=message,
+            history=history,
+        )
+        history_repo.create(user_id=user_id, content=message)
+        return intent

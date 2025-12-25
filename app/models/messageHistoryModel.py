@@ -1,15 +1,10 @@
-# models.py
-from __future__ import annotations
-
-from datetime import datetime
 from sqlalchemy import String, Integer, DateTime, Index
+from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column
+from app.core.db import Base
 
-from app.config.db import Base
-
-
-class ChatMessage(Base):
-    __tablename__ = "chat_messages"
+class MessageHistory(Base):
+    __tablename__ = "message_history"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(String(128), index=True)
@@ -17,5 +12,4 @@ class ChatMessage(Base):
     content: Mapped[str] = mapped_column(String(4000))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
-
-Index("ix_chat_user_time", ChatMessage.user_id, ChatMessage.created_at)
+Index("ix_chat_user_time", MessageHistory.user_id, MessageHistory.created_at)
