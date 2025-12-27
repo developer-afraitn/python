@@ -4,9 +4,9 @@ import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Optional, Tuple
-
 from app.storage.repo.memoryRepo import MemoryRepo
 from app.logging_config import get_logger
+from app.exceptions import AppError
 
 logger = get_logger("ai-agent")
 memory_repo = MemoryRepo()
@@ -55,10 +55,11 @@ class HotelFilter:
         if new_check_out is not None:
             information["check_out"] = new_check_out
 
-        if information.get("check_in") is not None:
+        # ✅ BUGFIX: فقط اگر date بود isoformat کن، اگر str بود دست نزن
+        if isinstance(information.get("check_in"), date):
             information["check_in"] = information["check_in"].isoformat()
 
-        if information.get("check_out") is not None:
+        if isinstance(information.get("check_out"), date):
             information["check_out"] = information["check_out"].isoformat()
 
 
@@ -67,6 +68,23 @@ class HotelFilter:
         else :
             memory_repo.create(user_id=user_id,information=information)
 
+        missing = []
+        if not information.get("city"):
+            missing.append("city")
+        if not information.get("check_in"):
+            missing.append("check_in")
+        if not information.get("check_out"):
+            missing.append("check_out")
+
+        if missing:
+            raise AppError(
+                code="400",
+                message="اطلاعات کافی نیست.",
+                status_code=400,
+                details={"missing_fields": missing}
+            )
+
+        
         return information
 
     def _extract_city(self, message: str) -> Optional[str]:
