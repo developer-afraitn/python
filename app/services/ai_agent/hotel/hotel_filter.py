@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from app.exceptions import AppError
 from app.storage.repo.memoryRepo import MemoryRepo
 from app.logging_config import get_logger
-from app.utils.datetime_helper import to_date, to_iso_date_str, today_date
+from app.utils.datetime_helper import to_date, to_iso_date_str, today_date,gregorian_to_jalali
 
 logger = get_logger("ai-agent")
 memory_repo = MemoryRepo()
@@ -73,10 +73,10 @@ class HotelFilter:
         missing = [f for f in required_fields if not information.get(f)]
         if missing:
             raise AppError(
-                code="VALIDATION_ERROR",
+                status=400,
                 message="اطلاعات کافی نیست.",
-                status_code=400,
-                details={"missing_fields": missing},
+                data=None,
+                detail={"missing_fields": missing},
             )
 
         # date rules (assume format always valid)
@@ -86,22 +86,21 @@ class HotelFilter:
 
         if ci < t:
             raise AppError(
-                code="VALIDATION_ERROR",
+                status=400,
                 message="تاریخ ورود باید بزرگ‌تر یا مساوی امروز باشد.",
-                status_code=400,
-                details={"check_in": ci.isoformat(), "today": t.isoformat()},
+                data=None,
+                detail={"check_in": ci.isoformat(), "today": t.isoformat()},
             )
 
         if co <= ci:
             raise AppError(
-                code="VALIDATION_ERROR",
+                status=400,
                 message="تاریخ خروج باید بعد از تاریخ ورود باشد.",
-                status_code=400,
-                details={"check_in": ci.isoformat(), "check_out": co.isoformat()},
+                data=None,
+                detail={"check_in": ci.isoformat(), "check_out": co.isoformat()},
             )
-
-        
-        return information
+        message=self.hotel_filter_summary_text(information)
+        return {'message':message,'information':information}
 
     def _extract_city(self, message: str) -> Optional[str]:
         for c in self.CITIES:
@@ -115,3 +114,13 @@ class HotelFilter:
             return None, None
         ds = [date(int(y), int(m), int(d)) for (y, m, d) in matches[:2]]
         return (ds[0], None) if len(ds) == 1 else (ds[0], ds[1])
+    
+    @staticmethod
+    def hotel_filter_summary_text(information: dict) -> str:
+        city = information["city"]
+
+        # تاریخ‌های میلادی (ایزو) -> جلالی با فرمت PHP-like که خودت دادی
+        check_in_text = gregorian_to_jalali(information["check_in"], "l j F")
+        check_out_text = gregorian_to_jalali(information["check_out"], "l j F Y")
+
+        return f"فیلتر برای شهر {city} با تاریخ ورود {check_in_text} و تاریخ خروج {check_out_text}"

@@ -36,6 +36,9 @@ services:
       # داخل شبکه‌ی docker-compose از اسم سرویس‌ها استفاده می‌کنیم:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-appuser}:${POSTGRES_PASSWORD:-apppass}@postgres:5432/${POSTGRES_DB:-appdb}"
       REDIS_URL: "redis://redis:6379/0"
+      LANG: fa_IR.UTF-8
+      LANGUAGE: fa_IR:fa
+      LC_ALL: fa_IR.UTF-8
     volumes:
       - ./app:/app/app
       - "${HOST_PIPER_VOICES_DIR}:${PIPER_VOICE_PATH}:ro"

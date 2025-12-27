@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any, Optional
-
+import jdatetime
 
 def to_date(value: Any) -> Optional[date]:
     """
@@ -48,3 +48,56 @@ def to_iso_date_str(value: Any) -> Optional[str]:
 def today_date() -> date:
     """Return today's date (server local)."""
     return date.today()
+
+PHP_TO_STRFTIME = {
+    "l": "%A",  # weekday name
+    "j": "%-d", # day of month (no leading zero) - روی ویندوز ممکنه کار نکنه
+    "F": "%B",  # month name
+    "Y": "%Y",  # year (4-digit)
+    "H": "%H",  # hour 00-23
+    "i": "%M",  # minute 00-59
+    "s": "%S",  # second 00-59
+}
+def gregorian_to_jalali(gregorian: str, fmt: str) -> str:
+    """
+    gregorian:
+      - 'YYYY-MM-DD'
+      - 'YYYY-MM-DD HH:MM:SS'
+    fmt: PHP-like (subset): l j F Y H:i:s  + escape with backslash like PHP
+    """
+    g = gregorian.strip()
+    if " " in g:
+        gdt = datetime.fromisoformat(g)
+    else:
+        gdt = datetime.fromisoformat(g + " 00:00:00")
+
+    jdt = jdatetime.datetime.fromgregorian(datetime=gdt)
+
+    # تبدیل fmt از PHP tokens به strftime
+    out = []
+    esc = False
+    for ch in fmt:
+        if esc:
+            out.append(ch)
+            esc = False
+            continue
+        if ch == "\\":
+            esc = True
+            continue
+        out.append(PHP_TO_STRFTIME.get(ch, ch))
+
+    strftime_fmt = "".join(out)
+
+    # نکته: %-d روی لینوکس ok است. اگر ویندوز دارید، باید جایگزین کنیم.
+    res = jdt.strftime(strftime_fmt)
+
+    # اگر %-d پشتیبانی نشد، راه امن:
+    # (در لینوکس لازم نیست، ولی برای سازگاری می‌تونی از این استفاده کنی)
+    if "%-d" in strftime_fmt:
+        try:
+            res = jdt.strftime(strftime_fmt)
+        except ValueError:
+            # fallback: %d و حذف صفرهای اول
+            res = jdt.strftime(strftime_fmt.replace("%-d", "%d")).replace(" 0", " ").lstrip("0")
+
+    return res

@@ -14,11 +14,12 @@ app = FastAPI()
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError):
     return JSONResponse(
-        status_code=exc.status_code,
+        status_code=exc.status,
         content={
-            "code": exc.code,
+            "status": exc.status,
             "message": exc.message,
-            "details": exc.details,
+            "data": exc.data,
+            "detail": exc.detail,
         },
     )
 app.include_router(text_to_voice_router)
