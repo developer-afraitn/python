@@ -4,9 +4,12 @@ import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Optional, Tuple
+from datetime import datetime, timedelta
+
+from app.exceptions import AppError
 from app.storage.repo.memoryRepo import MemoryRepo
 from app.logging_config import get_logger
-from app.exceptions import AppError
+from app.utils.datetime_helper import to_date, to_iso_date_str, today_date
 
 logger = get_logger("ai-agent")
 memory_repo = MemoryRepo()
@@ -25,16 +28,20 @@ class HotelFilter:
     CITIES = ("تهران", "مشهد", "شیراز", "اصفهان", "کیش", "تبریز", "رشت", "یزد", "قم", "اهواز")
     DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 
-    def memory(self, user_id:str):
-        memory=memory_repo.find(user_id=user_id)
-        if memory is not None:
-            self.user_memory_id=memory.id
-            return memory.information
-        else : 
-            return None;
-
     def __init__(self):
         self.user_memory_id = None
+
+    def memory(self, user_id: str):
+        memory = memory_repo.find(user_id=user_id)
+        if memory is not None:
+            self.user_memory_id = memory.id
+
+            # اگر بیشتر از ۱۰ ساعت گذشته، مموری را نادیده بگیر
+            if memory.updated_at < datetime.now() - timedelta(hours=10):
+                return None
+
+            return memory.information
+        return None
 
     def handle(self, user_id: str, message: str):
         new_city = self._extract_city(message)
@@ -42,46 +49,55 @@ class HotelFilter:
 
         information = self.memory(user_id)
         if information is None:
-            information={
-                'city' : None,
-                'check_in' : None,
-                'check_out' : None,
-            }
+            information = {"city": None, "check_in": None, "check_out": None}
 
         if new_city is not None:
-            information["city"]= new_city
+            information["city"] = new_city
         if new_check_in is not None:
             information["check_in"] = new_check_in
         if new_check_out is not None:
             information["check_out"] = new_check_out
 
-        # ✅ BUGFIX: فقط اگر date بود isoformat کن، اگر str بود دست نزن
-        if isinstance(information.get("check_in"), date):
-            information["check_in"] = information["check_in"].isoformat()
+        # BUGFIX: safe serialize (date -> str), keep str as-is
+        information["check_in"] = to_iso_date_str(information.get("check_in")) or information.get("check_in")
+        information["check_out"] = to_iso_date_str(information.get("check_out")) or information.get("check_out")
 
-        if isinstance(information.get("check_out"), date):
-            information["check_out"] = information["check_out"].isoformat()
+        # persist
+        if self.user_memory_id:
+            memory_repo.update(id=self.user_memory_id, information=information)
+        else:
+            memory_repo.create(user_id=user_id, information=information)
 
-
-        if self.user_memory_id :
-            memory_repo.update(id=self.user_memory_id,information=information)
-        else :
-            memory_repo.create(user_id=user_id,information=information)
-
-        missing = []
-        if not information.get("city"):
-            missing.append("city")
-        if not information.get("check_in"):
-            missing.append("check_in")
-        if not information.get("check_out"):
-            missing.append("check_out")
-
+        # required fields
+        required_fields = ["city", "check_in", "check_out"]
+        missing = [f for f in required_fields if not information.get(f)]
         if missing:
             raise AppError(
-                code="400",
+                code="VALIDATION_ERROR",
                 message="اطلاعات کافی نیست.",
                 status_code=400,
-                details={"missing_fields": missing}
+                details={"missing_fields": missing},
+            )
+
+        # date rules (assume format always valid)
+        ci = to_date(information.get("check_in"))
+        co = to_date(information.get("check_out"))
+        t = today_date()
+
+        if ci < t:
+            raise AppError(
+                code="VALIDATION_ERROR",
+                message="تاریخ ورود باید بزرگ‌تر یا مساوی امروز باشد.",
+                status_code=400,
+                details={"check_in": ci.isoformat(), "today": t.isoformat()},
+            )
+
+        if co <= ci:
+            raise AppError(
+                code="VALIDATION_ERROR",
+                message="تاریخ خروج باید بعد از تاریخ ورود باشد.",
+                status_code=400,
+                details={"check_in": ci.isoformat(), "check_out": co.isoformat()},
             )
 
         
