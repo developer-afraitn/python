@@ -4,19 +4,16 @@ import re
 from datetime import date
 from typing import Optional, Tuple
 
+import jdatetime
+
 
 class HotelDateExtractor:
     """
-    Inputs:
-      - message: متن کاربر
-      - prev_check_in: تاریخ ورود قبلی به صورت string 'YYYY-MM-DD' یا None
-      - prev_check_out: تاریخ خروج قبلی به صورت string 'YYYY-MM-DD' یا None
-
-    Output:
-      - (new_check_in, new_check_out) هرکدام از نوع date یا None
+    استخراج تاریخ‌های شمسی (YYYY/MM/DD) از متن کاربر
+    و تبدیل آن‌ها به تاریخ میلادی (datetime.date)
     """
 
-    DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
+    DATE_RE = re.compile(r"\b(\d{4})/(\d{2})/(\d{2})\b")
 
     def extract(
         self,
@@ -24,9 +21,14 @@ class HotelDateExtractor:
         prev_check_in: Optional[str],
         prev_check_out: Optional[str],
     ) -> Tuple[Optional[date], Optional[date]]:
+
         matches = self.DATE_RE.findall(message or "")
         if not matches:
             return None, None
 
-        ds = [date(int(y), int(m), int(d)) for (y, m, d) in matches[:2]]
-        return (ds[0], None) if len(ds) == 1 else (ds[0], ds[1])
+        dates = []
+        for y, m, d in matches[:2]:
+            g = jdatetime.date(int(y), int(m), int(d)).togregorian()
+            dates.append(g)
+
+        return (dates[0], None) if len(dates) == 1 else (dates[0], dates[1])
