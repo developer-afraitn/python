@@ -10,7 +10,7 @@ from app.routers.ai_agent.router import router as ai_agent_router
 
 repair_missing_tables()
 
-app = FastAPI()
+app = FastAPI(redirect_slashes=False)
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError):
     return JSONResponse(

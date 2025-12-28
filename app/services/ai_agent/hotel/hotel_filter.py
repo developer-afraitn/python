@@ -1,35 +1,42 @@
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass
-from datetime import date
-from typing import Optional, Tuple
+import requests
+from typing import Optional
 from datetime import datetime, timedelta
 
 from app.exceptions import AppError
 from app.storage.repo.memoryRepo import MemoryRepo
 from app.logging_config import get_logger
 from app.utils.datetime_helper import to_date, to_iso_date_str, today_date,gregorian_to_jalali
+from app.utils.ai_response_message import success_message
+from app.services.ai_agent.hotel.hotel_date_extractor import HotelDateExtractor
 
 logger = get_logger("ai-agent")
 memory_repo = MemoryRepo()
 
-@dataclass
-class HotelFilterState:
-    user_id: str
-    city: Optional[str] = None
-    check_in: Optional[date] = None
-    check_out: Optional[date] = None
-
-
 class HotelFilter:
-
-    # --- ساده‌ترین استخراج ---
-    CITIES = ("تهران", "مشهد", "شیراز", "اصفهان", "کیش", "تبریز", "رشت", "یزد", "قم", "اهواز")
-    DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 
     def __init__(self):
         self.user_memory_id = None
+        self._city_cache = None
+        self._city_cache_at = None
+        self.date_extractor = HotelDateExtractor()
+
+    def _load_cities(self) -> dict[str, int]:
+        # اگر کش معتبره، همونو بده
+        if self._city_cache and self._city_cache_at and self._city_cache_at > datetime.now() - timedelta(hours=6):
+            return self._city_cache
+
+        r = requests.get("https://tourgardan.com/api/info/city/search", timeout=10)
+        r.raise_for_status()
+        payload = r.json()
+
+        # payload["data"] = [{"id":..., "text":"...", ...}, ...]
+        cities = {item["text"]: item["id"] for item in payload.get("data", []) if item.get("text") and item.get("id")}
+
+        self._city_cache = cities
+        self._city_cache_at = datetime.now()
+        return cities
 
     def memory(self, user_id: str):
         memory = memory_repo.find(user_id=user_id)
@@ -44,15 +51,26 @@ class HotelFilter:
         return None
 
     def handle(self, user_id: str, message: str):
-        new_city = self._extract_city(message)
-        new_check_in, new_check_out = self._extract_dates(message)
 
         information = self.memory(user_id)
         if information is None:
             information = {"city": None, "check_in": None, "check_out": None}
 
-        if new_city is not None:
-            information["city"] = new_city
+
+        city_found = self._extract_city(message)
+
+        
+        # ✅ استفاده از کلاس جدید
+        new_check_in, new_check_out = self.date_extractor.extract(
+            message=message,
+            prev_check_in=information.get("check_in"),
+            prev_check_out=information.get("check_out"),
+        )
+
+        if city_found is not None:
+            city_name, city_id = city_found
+            information["city"] = city_name
+            information["city_id"] = city_id
         if new_check_in is not None:
             information["check_in"] = new_check_in
         if new_check_out is not None:
@@ -100,21 +118,26 @@ class HotelFilter:
                 detail={"check_in": ci.isoformat(), "check_out": co.isoformat()},
             )
         message=self.hotel_filter_summary_text(information)
-        return {'message':message,'information':information}
+        information['limit'] = 3
+        information['page'] = 1
+        
+        information['passengers'] = [{'adult':1,'child':[]}]
 
-    def _extract_city(self, message: str) -> Optional[str]:
-        for c in self.CITIES:
-            if c in message:
-                return c
+        return success_message(
+            message=message,
+            type='hotel-search',
+            result={
+                'filters':information
+            },
+            request=[])
+
+    def _extract_city(self, message: str) -> Optional[tuple[str, int]]:
+        cities = self._load_cities()  # {"کیش": 760013, ...}
+        for city_name, city_id in cities.items():
+            if city_name in message:
+                return city_name, city_id
         return None
-
-    def _extract_dates(self, message: str) -> Tuple[Optional[date], Optional[date]]:
-        matches = self.DATE_RE.findall(message)
-        if not matches:
-            return None, None
-        ds = [date(int(y), int(m), int(d)) for (y, m, d) in matches[:2]]
-        return (ds[0], None) if len(ds) == 1 else (ds[0], ds[1])
-    
+ 
     @staticmethod
     def hotel_filter_summary_text(information: dict) -> str:
         city = information["city"]

@@ -23,7 +23,7 @@ class IntentResponse(BaseModel):
     intent: str  # one of: filter | comparison | greeting | other
 
 
-@router.post("/intent")
+@router.post("/ai")
 def ai_agent(payload: IntentRequest):
     intent = intent_service.detect_intent(user_id=payload.user_id, message=payload.message)
     match intent:

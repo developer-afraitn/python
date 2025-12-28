@@ -1,4 +1,5 @@
-from sqlalchemy import String, Integer, DateTime, JSON, UniqueConstraint, func
+from sqlalchemy import String, Integer, DateTime, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column
 from app.storage.db import Base
@@ -20,7 +21,7 @@ class Memory(Base):
     )
 
     information: Mapped[dict] = mapped_column(
-        JSON, nullable=True
+        JSONB, nullable=True
     )
 
     created_at: Mapped[datetime] = mapped_column(
