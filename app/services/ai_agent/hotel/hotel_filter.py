@@ -87,14 +87,20 @@ class HotelFilter:
             memory_repo.create(user_id=user_id, information=information)
 
         # required fields
-        required_fields = ["city", "check_in", "check_out"]
-        missing = [f for f in required_fields if not information.get(f)]
+        required_fields = {
+            "city": "شهر مشخص نیست",
+            "check_in": "تاریخ ورود مشخص نیست",
+            "check_out": "تاریخ خروج مشخص نیست",
+        }
+
+        missing = [key for key in required_fields if information.get(key) in (None, "", [])]
+
         if missing:
+
             raise AppError(
                 status=400,
-                message="اطلاعات کافی نیست.",
+                message=required_fields[missing[0]],
                 data=None,
-                detail={"missing_fields": missing},
             )
 
         # date rules (assume format always valid)
