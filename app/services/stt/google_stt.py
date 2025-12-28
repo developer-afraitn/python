@@ -9,10 +9,18 @@ class GoogleSTTService:
 
         # جلوگیری از دسترسی به بیرون فولدر mount شده
         if base not in target.parents and target != base:
-            return {"error": "مسیر غیرمجاز است"}
+            return {
+                "error": "مسیر غیرمجاز است",
+                "base": str(base),
+                "target": str(target)
+            }
 
         if not target.exists():
-            return {"error": "فایل پیدا نشد"}
+            return {
+                "error": "فایل پیدا نشد",
+                "base": str(base),
+                "target": str(target)
+            }
 
         language = "fa-IR" if lang != "en" else "en-US"
 
