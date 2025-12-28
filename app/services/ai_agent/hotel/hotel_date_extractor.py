@@ -1,18 +1,13 @@
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional, Tuple
 
 import jdatetime
 
 
 class HotelDateExtractor:
-    """
-    استخراج تاریخ‌های شمسی (YYYY/MM/DD) از متن کاربر
-    و تبدیل آن‌ها به تاریخ میلادی (datetime.date)
-    """
-
     DATE_RE = re.compile(r"\b(\d{4})/(\d{2})/(\d{2})\b")
 
     def extract(
@@ -22,13 +17,35 @@ class HotelDateExtractor:
         prev_check_out: Optional[str],
     ) -> Tuple[Optional[date], Optional[date]]:
 
+        prev_ci = date.fromisoformat(prev_check_in) if prev_check_in else None
+        prev_co = date.fromisoformat(prev_check_out) if prev_check_out else None
+
         matches = self.DATE_RE.findall(message or "")
-        if not matches:
-            return None, None
+        dates = [
+            jdatetime.date(int(y), int(m), int(d)).togregorian()
+            for y, m, d in matches[:2]
+        ]
 
-        dates = []
-        for y, m, d in matches[:2]:
-            g = jdatetime.date(int(y), int(m), int(d)).togregorian()
-            dates.append(g)
+        # 1) هیچ تاریخی پیدا نشد
+        if not dates:
+            return prev_ci, prev_co
 
-        return (dates[0], None) if len(dates) == 1 else (dates[0], dates[1])
+        # 2) هر دو تاریخ پیدا شد
+        if len(dates) >= 2:
+            return dates[0], dates[1]
+
+        found = dates[0]
+
+        # 3) فقط یک تاریخ پیدا شد
+        if prev_ci and prev_co:
+            nights = (prev_co - prev_ci).days
+
+            # فقط تاریخ خروج عوض شده
+            if found == prev_co:
+                return prev_ci, found
+
+            # تاریخ ورود عوض شده، خروج = همان تعداد شب قبل
+            return found, found + timedelta(days=nights)
+
+        # فقط تاریخ ورود پیدا شده و قبلی نداریم
+        return found, None
