@@ -10,6 +10,10 @@ import jdatetime
 class HotelDateExtractor:
     DATE_RE = re.compile(r"\b(\d{4})/(\d{2})/(\d{2})\b")
 
+    CHECK_IN_HINT = re.compile(r"(ورود|تاریخ ورود)")
+    CHECK_OUT_HINT = re.compile(r"(خروج|تاریخ خروج)")
+    RANGE_HINT = re.compile(r"(از.*تا)")
+
     def extract(
         self,
         message: str,
@@ -23,29 +27,37 @@ class HotelDateExtractor:
         matches = self.DATE_RE.findall(message or "")
         dates = [
             jdatetime.date(int(y), int(m), int(d)).togregorian()
-            for y, m, d in matches[:2]
+            for y, m, d in matches
         ]
 
-        # 1) هیچ تاریخی پیدا نشد
+        # هیچ تاریخی نیست
         if not dates:
             return prev_ci, prev_co
 
-        # 2) هر دو تاریخ پیدا شد
+        has_in = bool(self.CHECK_IN_HINT.search(message))
+        has_out = bool(self.CHECK_OUT_HINT.search(message))
+        has_range = bool(self.RANGE_HINT.search(message))
+
+        # بازه یا هر دو صراحتاً گفته شده
+        if has_range or (has_in and has_out):
+            if len(dates) >= 2:
+                return dates[0], dates[1]
+
+        # فقط ورود
+        if has_in and dates:
+            new_ci = dates[0]
+            if prev_ci and prev_co:
+                nights = (prev_co - prev_ci).days
+                return new_ci, new_ci + timedelta(days=nights)
+            return new_ci, None
+
+        # فقط خروج
+        if has_out and dates:
+            return prev_ci, dates[-1]
+
+        # fallback: دو تاریخ → هر دو
         if len(dates) >= 2:
             return dates[0], dates[1]
 
-        found = dates[0]
-
-        # 3) فقط یک تاریخ پیدا شد
-        if prev_ci and prev_co:
-            nights = (prev_co - prev_ci).days
-
-            # فقط تاریخ خروج عوض شده
-            if found == prev_co:
-                return prev_ci, found
-
-            # تاریخ ورود عوض شده، خروج = همان تعداد شب قبل
-            return found, found + timedelta(days=nights)
-
-        # فقط تاریخ ورود پیدا شده و قبلی نداریم
-        return found, None
+        # fallback: یک تاریخ → ورود
+        return dates[0], prev_co
