@@ -11,6 +11,14 @@ logger = get_logger("ai-agent")
 
 class HotelDateExtractor:
     DATE_RE = re.compile(r"\b(\d{4})/(\d{1,2})/(\d{1,2})\b")
+    WORD_DATE_RE = re.compile(
+        r"\b(?:شنبه|یکشنبه|دوشنبه|سه‌شنبه|سه شنبه|چهارشنبه|پنجشنبه|جمعه)?\s*"
+        r"(\d{1,2})\s*(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)\s*(\d{4})?\b"
+    )
+    MONTH_MAP = {
+        "فروردین": 1, "اردیبهشت": 2, "خرداد": 3, "تیر": 4, "مرداد": 5, "شهریور": 6,
+        "مهر": 7, "آبان": 8, "آذر": 9, "دی": 10, "بهمن": 11, "اسفند": 12,
+    }
 
     CHECK_IN_HINT = re.compile(r"(ورود|تاریخ ورود)")
     CHECK_OUT_HINT = re.compile(r"(خروج|تاریخ خروج)")
@@ -26,11 +34,26 @@ class HotelDateExtractor:
         prev_ci = date.fromisoformat(prev_check_in) if prev_check_in else None
         prev_co = date.fromisoformat(prev_check_out) if prev_check_out else None
 
-        matches = self.DATE_RE.findall(message or "")
+        msg = message or ""
+
+        matches = self.DATE_RE.findall(msg)
         dates = [
             jdatetime.date(int(y), int(m), int(d)).togregorian()
             for y, m, d in matches
         ]
+
+        # اگر تاریخ عددی نبود، تاریخ متنی مثل "25 دی 1404" یا "25 دی" رو بخون
+        if not dates:
+            jalali_year_default = jdatetime.date.today().year
+            word_matches = self.WORD_DATE_RE.findall(msg)
+            dates = [
+                jdatetime.date(
+                    int(y) if y else jalali_year_default,
+                    self.MONTH_MAP[mon],
+                    int(day),
+                ).togregorian()
+                for (day, mon, y) in word_matches
+            ]
         logger.info(
             "date_detected",
             dates=dates,
