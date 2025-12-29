@@ -15,6 +15,8 @@ class HotelDateExtractor:
         r"\b(?:شنبه|یکشنبه|دوشنبه|سه‌شنبه|سه شنبه|چهارشنبه|پنجشنبه|جمعه)?\s*"
         r"(\d{1,2})\s*(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)\s*(\d{4})?\b"
     )
+    RELATIVE_RE = re.compile(r"\b(امروز|فردا|پس\s*فردا)\b")
+    DURATION_RE = re.compile(r"\bبه\s*مدت\s*(\d+)\s*شب\b")
     MONTH_MAP = {
         "فروردین": 1, "اردیبهشت": 2, "خرداد": 3, "تیر": 4, "مرداد": 5, "شهریور": 6,
         "مهر": 7, "آبان": 8, "آذر": 9, "دی": 10, "بهمن": 11, "اسفند": 12,
@@ -58,6 +60,33 @@ class HotelDateExtractor:
             "date_detected",
             dates=dates,
         )
+        # اگر تاریخ صریح پیدا نشد، تاریخ نسبی مثل امروز/فردا/پس‌فردا + مدت شب را هندل کن
+        if not dates:
+            msg = message or ""
+
+            rel = self.RELATIVE_RE.search(msg)
+            dur = self.DURATION_RE.search(msg)
+
+            if rel:
+                base_j = jdatetime.date.today()
+                word = rel.group(1).replace(" ", "")
+
+                offset = 0 if word == "امروز" else (1 if word == "فردا" else 2)
+                ci_j = base_j + timedelta(days=offset)
+                ci_g = ci_j.togregorian()
+
+                # اگر مدت شب گفته شده بود، خروج را بر اساس آن بساز
+                if dur:
+                    nights = int(dur.group(1))
+                    return ci_g, ci_g + timedelta(days=nights)
+
+                # اگر فقط تاریخ نسبی بود، مثل حالت "فقط ورود" رفتار کن (با حفظ شب‌های قبلی اگر داریم)
+                if prev_ci and prev_co:
+                    nights = (prev_co - prev_ci).days
+                    return ci_g, ci_g + timedelta(days=nights)
+
+                return ci_g, None
+
         # هیچ تاریخی نیست
         if not dates:
             return prev_ci, prev_co
