@@ -3,12 +3,14 @@ from __future__ import annotations
 import re
 from datetime import date, timedelta
 from typing import Optional, Tuple
+from app.logging_config import get_logger
 
 import jdatetime
+logger = get_logger("ai-agent")
 
 
 class HotelDateExtractor:
-    DATE_RE = re.compile(r"\b(\d{4})/(\d{2})/(\d{2})\b")
+    DATE_RE = re.compile(r"\b(\d{4})/(\d{1,2})/(\d{1,2})\b")
 
     CHECK_IN_HINT = re.compile(r"(ورود|تاریخ ورود)")
     CHECK_OUT_HINT = re.compile(r"(خروج|تاریخ خروج)")
@@ -29,7 +31,10 @@ class HotelDateExtractor:
             jdatetime.date(int(y), int(m), int(d)).togregorian()
             for y, m, d in matches
         ]
-
+        logger.info(
+            "date_detected",
+            dates=dates,
+        )
         # هیچ تاریخی نیست
         if not dates:
             return prev_ci, prev_co
