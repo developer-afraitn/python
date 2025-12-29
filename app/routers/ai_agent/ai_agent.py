@@ -1,6 +1,6 @@
 from __future__ import annotations
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from app.logging_config import get_logger
 
 from app.services.ai_agent.intent_classifier import IntentService
@@ -18,6 +18,12 @@ intent_service  = IntentService()  # فعلاً rule-based
 class IntentRequest(BaseModel):
     user_id: str = Field(..., min_length=1, max_length=128)
     message: str = Field(..., min_length=1, max_length=4000)
+    @field_validator("user_id", mode="before")
+    @classmethod
+    def coerce_user_id_to_str(cls, v):
+        if v is None:
+            raise ValueError("user_id is required")
+        return str(v)
 
 
 class IntentResponse(BaseModel):
