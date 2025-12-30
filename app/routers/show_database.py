@@ -8,7 +8,7 @@ router = APIRouter()
 memory_repo = MemoryRepo()
 message_history_repo = MessageHistoryRepo()
 
-@router.get("api/db/message_history")
+@router.get("/db/message_history")
 def message_history(page: int = Query(1, ge=1)):
         return message_history_repo.list(page)
 
