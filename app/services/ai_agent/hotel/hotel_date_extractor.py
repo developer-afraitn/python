@@ -37,7 +37,21 @@ class HotelDateExtractor:
         prev_co = date.fromisoformat(prev_check_out) if prev_check_out else None
 
         msg = message or ""
+        dates = self._extract_dates(msg, prev_ci, prev_co)
+        
+        logger.info(
+            "date_detected",
+            dates=[d.isoformat() for d in dates if d],
+        )
+        dates = self._apply_policy(message, dates, prev_ci, prev_co)
+        
+        logger.info(
+            "date_replace",
+            dates=[d.isoformat() for d in dates if d],
+        )
+        return dates
 
+    def _extract_dates(self, msg: str, prev_ci: Optional[date], prev_co: Optional[date]):
         matches = self.DATE_RE.findall(msg)
         dates = [
             jdatetime.date(int(y), int(m), int(d)).togregorian()
@@ -56,14 +70,10 @@ class HotelDateExtractor:
                 ).togregorian()
                 for (day, mon, y) in word_matches
             ]
-        logger.info(
-            "date_detected",
-            dates=dates,
-        )
+
+
         # اگر تاریخ صریح پیدا نشد، تاریخ نسبی مثل امروز/فردا/پس‌فردا + مدت شب را هندل کن
         if not dates:
-            msg = message or ""
-
             rel = self.RELATIVE_RE.search(msg)
             dur = self.DURATION_RE.search(msg)
 
@@ -78,14 +88,24 @@ class HotelDateExtractor:
                 # اگر مدت شب گفته شده بود، خروج را بر اساس آن بساز
                 if dur:
                     nights = int(dur.group(1))
-                    return ci_g, ci_g + timedelta(days=nights)
+                    return [ci_g, ci_g + timedelta(days=nights)]
 
                 # اگر فقط تاریخ نسبی بود، مثل حالت "فقط ورود" رفتار کن (با حفظ شب‌های قبلی اگر داریم)
                 if prev_ci and prev_co:
                     nights = (prev_co - prev_ci).days
-                    return ci_g, ci_g + timedelta(days=nights)
+                    return [ci_g, ci_g + timedelta(days=nights)]
 
-                return ci_g, None
+                return [ci_g]
+
+        return dates
+
+    def _apply_policy(
+        self,
+        message: str,
+        dates,
+        prev_ci: Optional[date],
+        prev_co: Optional[date],
+    ) -> Tuple[Optional[date], Optional[date]]:
 
         # هیچ تاریخی نیست
         if not dates:
