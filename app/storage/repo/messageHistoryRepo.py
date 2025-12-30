@@ -27,3 +27,20 @@ class MessageHistoryRepo:
             )
             rows = db.execute(stmt).all()
             return [r[0] for r in reversed(rows)]
+        
+    def list(self , page: int = 1, limit: int = 20) -> list[dict]:
+        offset = (page - 1) * limit
+        with get_session() as db:
+            stmt = (
+                select(MessageHistory)
+                .order_by(desc(MessageHistory.id))
+                .limit(limit)
+                .offset(offset)
+            )
+            objs = db.execute(stmt).scalars().all()
+            objs = list(reversed(objs))
+
+            return [
+                {col.name: getattr(o, col.name) for col in MessageHistory.__table__.columns}
+                for o in objs
+            ]

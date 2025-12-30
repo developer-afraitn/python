@@ -111,7 +111,7 @@ class HotelFilter:
         if ci < t:
             raise AppError(
                 status=400,
-                message="تاریخ ورود باید بزرگ‌تر یا مساوی امروز باشد.",
+                message="تاریخ ورود باید بعد از امروز باشد.",
                 data=None,
                 detail={"check_in": ci.isoformat(), "today": t.isoformat()},
             )
