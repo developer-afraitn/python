@@ -61,10 +61,11 @@ class HotelFilter:
 
         
         # ✅ استفاده از کلاس جدید
-        new_check_in, new_check_out = self.date_extractor.extract(
+        new_check_in, new_check_out, new_night = self.date_extractor.extract(
             message=message,
             prev_check_in=information.get("check_in"),
             prev_check_out=information.get("check_out"),
+            prev_nights=information.get("night"),
         )
 
         if city_found is not None:
@@ -124,6 +125,7 @@ class HotelFilter:
                 detail={"check_in": ci.isoformat(), "check_out": co.isoformat()},
             )
         message=self.hotel_filter_summary_text(information)
+        information['night'] = new_night
         information['limit'] = 3
         information['page'] = 1
         
