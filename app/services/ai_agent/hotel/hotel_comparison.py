@@ -3,9 +3,9 @@ from typing import Any, Dict, List, Optional
 
 import requests
 import chromadb
-from google import genai
-from google.genai import types
+from app.logging_config import get_logger
 
+logger = get_logger("ai-agent")
 
 class HotelComparison:
     """
@@ -42,8 +42,10 @@ class HotelComparison:
         self.chat_model = chat_model
         self.request_timeout = request_timeout
 
-        api_key = 'AIzaSyArWDyyLm5sAaQap1Zl3gJ14j-dB5q_aY0'
-        self.client = genai.Client(api_key=api_key)
+        api_key = "AIzaSyArWDyyLm5sAaQap1Zl3gJ14j-dB5q_aY0"
+        #api_key = "AIzaSyB-gLGTy4b1xje29WJzFwYUAbyGMDsnZYo"
+        self._gemini_api_key = api_key
+        self._gemini_api_base = "https://generativelanguage.googleapis.com/v1beta"
 
         # Chroma collection
         self._collection = self._get_collection()
@@ -125,8 +127,23 @@ class HotelComparison:
         return r.json()
 
     def _embed(self, text: str) -> List[float]:
-        resp = self.client.models.embed_content(model=self.embed_model, contents=text)
-        return resp.embeddings[0].values
+        url = f"{self._gemini_api_base}/models/{self.embed_model}:embedContent?{self._gemini_api_key}"
+        params = {"key": self._gemini_api_key}
+        payload = {"content": {"parts": [{"text": text}]}}
+        logger.info("_embed",payload=payload)
+        #r = requests.post(url, params=params, json=payload, timeout=60)
+        r = requests.post(
+            "https://tg.aiburger.ir/gemini2.php",
+            data={
+                "url": url,
+                "payload": json.dumps(payload, ensure_ascii=False),
+            },
+           timeout=120,
+        )
+        r.raise_for_status()
+        data = r.json()
+        logger.info("_embed",url=url,data=data)
+        return data["embedding"]["values"]
 
     def _build_docs(self, payload: Dict[str, Any], source_url: str, hotel_id: str) -> List[Dict[str, Any]]:
         """
@@ -226,24 +243,81 @@ class HotelComparison:
 
         return self._memory.get(session_id, {}).get("last_hotels", [])
 
-    def _retrieve(self, question: str, top_k: int, allowed_hotel_ids: Optional[List[str]]) -> List[Dict[str, Any]]:
+    def _retrieve(
+    self,
+    question: str,
+    top_k: int,
+    allowed_hotel_ids: Optional[List[str]],
+) -> List[Dict[str, Any]]:
         q_emb = self._embed(question)
+
+        # --- حالت مقایسه‌ای: چند هتل ---
+        if allowed_hotel_ids and len(allowed_hotel_ids) > 1:
+            per_hotel = max(1, top_k // len(allowed_hotel_ids))
+            hits: List[Dict[str, Any]] = []
+
+            for hid in allowed_hotel_ids:
+                res = self._collection.query(
+                    query_embeddings=[q_emb],
+                    n_results=per_hotel,
+                    where={"hotel_id": hid},   # فیلتر متادیتا
+                    include=["documents", "metadatas", "distances"],
+                )
+
+                for doc, meta, dist in zip(
+                    res["documents"][0],
+                    res["metadatas"][0],
+                    res["distances"][0],
+                ):
+                    hits.append(
+                        {
+                            "doc": doc,
+                            "meta": meta,
+                            "distance": dist,
+                        }
+                    )
+
+            # مرتب‌سازی نهایی بر اساس distance (کمتر = مرتبط‌تر)
+            hits.sort(key=lambda x: x["distance"])
+            return hits[:top_k]
+
+        # --- حالت عادی (یک هتل یا بدون محدودیت) ---
         res = self._collection.query(
             query_embeddings=[q_emb],
             n_results=top_k,
-            include=["documents", "metadatas", "distances"]
+            include=["documents", "metadatas", "distances"],
         )
 
         hits: List[Dict[str, Any]] = []
-        for doc, meta, dist in zip(res["documents"][0], res["metadatas"][0], res["distances"][0]):
+        for doc, meta, dist in zip(
+            res["documents"][0],
+            res["metadatas"][0],
+            res["distances"][0],
+        ):
             if allowed_hotel_ids and meta.get("hotel_id") not in allowed_hotel_ids:
                 continue
-            hits.append({"doc": doc, "meta": meta, "distance": dist})
+            hits.append(
+                {
+                    "doc": doc,
+                    "meta": meta,
+                    "distance": dist,
+                }
+            )
 
-        # If we filtered out everything, fallback to unfiltered results
+        # اگر فیلتر باعث شد هیچی نیاد، fallback به نتایج آزاد
         if allowed_hotel_ids and not hits:
-            for doc, meta, dist in zip(res["documents"][0], res["metadatas"][0], res["distances"][0]):
-                hits.append({"doc": doc, "meta": meta, "distance": dist})
+            for doc, meta, dist in zip(
+                res["documents"][0],
+                res["metadatas"][0],
+                res["distances"][0],
+            ):
+                hits.append(
+                    {
+                        "doc": doc,
+                        "meta": meta,
+                        "distance": dist,
+                    }
+                )
 
         return hits
 
@@ -266,13 +340,38 @@ CONTEXT:
 Question (FA):
 {question}
 """
+        url = f"{self._gemini_api_base}/models/{self.chat_model}:generateContent?key={self._gemini_api_key}"
+        #params = {"key": self._gemini_api_key}
+        payload = {
+            "systemInstruction": {"parts": [{"text": system_instruction}]},
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": prompt}],
+                }
+            ],
+            "generationConfig": {"temperature": 0.0},
+        }
+        logger.info("_generate_answer",payload=payload)
 
-        resp = self.client.models.generate_content(
-            model=self.chat_model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.0,
-            ),
+
+        #r = requests.post(url, params=params, json=payload, timeout=120)
+        r = requests.post(
+            "https://tg.aiburger.ir/gemini2.php",
+            data={
+                "url": url,
+                "payload": json.dumps(payload, ensure_ascii=False),
+            },
+           timeout=120,
         )
-        return resp.text or ""
+        r.raise_for_status()
+        data = r.json()
+        logger.info("_generate_answer",url=url,data=data)
+
+        candidates = data.get("candidates") or []
+        if not candidates:
+            return ""
+        parts = (candidates[0].get("content") or {}).get("parts") or []
+        if not parts:
+            return ""
+        return parts[0].get("text") or ""
