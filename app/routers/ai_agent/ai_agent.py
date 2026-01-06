@@ -33,7 +33,10 @@ class IntentResponse(BaseModel):
 
 @router.post("/ai")
 def ai_agent(payload: IntentRequest):
+    print('start')
+    print(payload)
     intent = intent_service.detect_intent(user_id=payload.user_id, message=payload.message)
+    print('intent',intent)
     match intent:
         case 'filter':
             filter = (HotelFilter()).handle(user_id=payload.user_id, message=payload.message)

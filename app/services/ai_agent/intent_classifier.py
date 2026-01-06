@@ -246,13 +246,15 @@ class IntentService:
     def detect_intent(self, user_id: str, message: str) -> str:
 
         history =history_repo.get_recent_user_history(user_id=user_id, limit=self.history_limit)
+        print('history',history)
         intent = self.classifier.predict(message=message, history=history)
-        logger.info(
-            "intent_detected",
-            intent=intent,
-            user_id=user_id,
-            message=message,
-            history=history,
-        )
+        print('intent',intent)
+        # logger.info(
+        #     "intent_detected",
+        #     intent=intent,
+        #     user_id=user_id,
+        #     message=message,
+        #     history=history,
+        # )
         history_repo.create(user_id=user_id, content=message)
         return intent

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-import requests
 from typing import Optional
 from datetime import datetime, timedelta
 
 from app.exceptions import AppError
+from app.services.ai_agent.hotel.hotel_extractor import HotelExtractor
 from app.storage.repo.memoryRepo import MemoryRepo
 from app.logging_config import get_logger
 from app.utils.datetime_helper import to_date, to_iso_date_str, today_date,gregorian_to_jalali
+from app.utils.main_helper import http_request
 from app.utils.ai_response_message import success_message
 from app.services.ai_agent.hotel.hotel_date_extractor import HotelDateExtractor
 
@@ -26,12 +27,9 @@ class HotelFilter:
         # اگر کش معتبره، همونو بده
         if self._city_cache and self._city_cache_at and self._city_cache_at > datetime.now() - timedelta(hours=6):
             return self._city_cache
+        r = http_request("https://tourgardan.com/api/info/city/search")
+        payload = r["response"]
 
-        r = requests.get("https://tourgardan.com/api/info/city/search", timeout=10)
-        r.raise_for_status()
-        payload = r.json()
-
-        # payload["data"] = [{"id":..., "text":"...", ...}, ...]
         cities = {item["text"]: item["id"] for item in payload.get("data", []) if item.get("text") and item.get("id")}
 
         self._city_cache = cities
@@ -58,6 +56,7 @@ class HotelFilter:
 
 
         city_found = self._extract_city(message)
+        print(city_found)
 
         
         # ✅ استفاده از کلاس جدید
@@ -104,6 +103,7 @@ class HotelFilter:
                 data=None,
             )
 
+        (HotelExtractor()).extract(message=message,city_id=information.get('city_id'))
         # date rules (assume format always valid)
         ci = to_date(information.get("check_in"))
         co = to_date(information.get("check_out"))
