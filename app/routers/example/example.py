@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.logging_config import get_logger
 
 from app.services.example.chromadb import ChromaDb
+from app.services.example.hazm import Hazm
 
 router = APIRouter()
 logger = get_logger("ai-agent")
@@ -39,3 +40,9 @@ def chromadb():
     chromadb  = ChromaDb()
     return chromadb.ask("بهترین زبان برای بک‌اند سریع چیست؟",n_results=3)
 
+
+@router.get("/hazm")
+def chromadb():
+    processor = Hazm()
+    text = "من امروز به مدرسه می‌روم. امروز هوا خیلی خوب است."
+    return processor.process_text(text)
