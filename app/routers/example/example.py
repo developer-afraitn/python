@@ -44,17 +44,6 @@ def chromadb():
 @router.get("/hazm")
 def chromadb():
     processor = Hazm()
-    text = "علی امروز به تهران رفت و کتابی برای مدرسه خرید."
-
+    text = "علی امروز به تهران رفت. هوا خیلی خوب بود و او خوشحال شد. اما دیروز روز سخت و ناراحتی داشت."
     result = processor.analyze_text(text)
-
-    print("Original Text:", result["original"])
-    print("Normalized:", result["normalized"])
-    print("Tokens:", result["tokens"])
-    print("Tokens without Stopwords:", result["tokens_no_stopwords"])
-    print("Stemmed:", result["stemmed"])
-    print("Lemmatized:", result["lemmatized"])
-    print("Word Count:", result["word_count"])
-    print("Character Count:", result["char_count"])
-    print("Most Common Tokens:", result["most_common_tokens"])
-    print("Entities (simple):", result["entities"])
+    return result
