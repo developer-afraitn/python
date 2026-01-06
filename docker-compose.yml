@@ -5,7 +5,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-appdb}
       POSTGRES_USER: ${POSTGRES_USER:-appuser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apppass}
-    # اگر لازم داری از بیرون به DB وصل شی، این رو نگه دار؛ وگرنه می‌تونی کامل حذفش کنی
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -20,8 +19,6 @@ services:
 
   redis:
     image: redis:7
-    # ⚠️ container_name حذف شد تا پروژه‌ها تداخل نکنن
-    # اگر لازم داری از بیرون به redis وصل شی، این رو نگه دار؛ وگرنه می‌تونی کامل حذفش کنی
     ports:
       - "${REDIS_PORT:-6379}:6379"
     healthcheck:
@@ -49,6 +46,9 @@ services:
       - ./outputs:/app/outputs
       - "${HOST_PIPER_VOICES_DIR}:${PIPER_VOICE_PATH}:ro"
       - "${HOST_AUDIO_DIR}:${AUDIO_BASE_DIR}:ro"
+      # volume pip cache برای نصب سریع کتابخانه‌ها
+      - pip_cache:/root/.cache/pip
+      - ./libs/all-MiniLM-L6-v2:/root/.cache/chroma/onnx_models/all-MiniLM-L6-v2
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,10 +60,10 @@ services:
 
 volumes:
   postgres_data:
-    # ✅ نام volume با اسم پروژه یکتا می‌شود
     name: "${COMPOSE_PROJECT_NAME:-myapp}_postgres_data"
+  pip_cache:
+    name: "${COMPOSE_PROJECT_NAME:-myapp}_pip_cache"
 
 networks:
   app_net:
-    # ✅ نام network با اسم پروژه یکتا می‌شود
     name: "${COMPOSE_PROJECT_NAME:-myapp}_net"

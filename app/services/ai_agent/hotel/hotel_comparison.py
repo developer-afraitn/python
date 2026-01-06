@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 import chromadb
+from chromadb.utils import embedding_functions
 from app.logging_config import get_logger
 
 logger = get_logger("ai-agent")
@@ -54,6 +55,10 @@ class HotelComparison:
         # session_id -> {"last_hotels":[...]}
         self._memory: Dict[str, Dict[str, Any]] = {}
 
+        # Embedding function (offline ONNX)
+        self._embedding_function = embedding_functions.DefaultEmbeddingFunction()
+        self._embedding_function.model_path = os.path.join(os.getcwd(), "libs/all-MiniLM-L6-v2/model.onnx")
+
     # -------------------------
     # Public methods (ONLY TWO)
     # -------------------------
@@ -99,6 +104,7 @@ class HotelComparison:
 
         return {
             "answer": answer,
+            #"answer": 'پاسخ',
             "resolved_hotel_ids": resolved,
             "retrieved": retrieved,
         }
@@ -111,7 +117,10 @@ class HotelComparison:
         try:
             return ch.get_collection(self.collection_name)
         except Exception:
-            return ch.create_collection(name=self.collection_name)
+            return ch.create_collection(
+                name=self.collection_name,
+                embedding_function=embedding_functions.DefaultEmbeddingFunction()
+            )
 
     @staticmethod
     def _s(x: Any) -> str:
@@ -127,23 +136,12 @@ class HotelComparison:
         return r.json()
 
     def _embed(self, text: str) -> List[float]:
-        url = f"{self._gemini_api_base}/models/{self.embed_model}:embedContent?{self._gemini_api_key}"
-        params = {"key": self._gemini_api_key}
-        payload = {"content": {"parts": [{"text": text}]}}
-        logger.info("_embed",payload=payload)
-        #r = requests.post(url, params=params, json=payload, timeout=60)
-        r = requests.post(
-            "https://tg.aiburger.ir/gemini2.php",
-            data={
-                "url": url,
-                "payload": json.dumps(payload, ensure_ascii=False),
-            },
-           timeout=120,
-        )
-        r.raise_for_status()
-        data = r.json()
-        logger.info("_embed",url=url,data=data)
-        return data["embedding"]["values"]
+        emb = self._embedding_function(text)
+        if hasattr(emb, "tolist"):
+            return emb.tolist()
+        if isinstance(emb, dict) and "values" in emb:
+            return emb["values"]
+        return list(emb)
 
     def _build_docs(self, payload: Dict[str, Any], source_url: str, hotel_id: str) -> List[Dict[str, Any]]:
         """
@@ -215,7 +213,6 @@ class HotelComparison:
                 ids=[d["id"]],
                 documents=[d["text"]],
                 metadatas=[d["meta"]],
-                embeddings=[self._embed(d["text"])],
             )
             added += 1
         return {"added": added, "built": len(docs)}
@@ -249,7 +246,7 @@ class HotelComparison:
     top_k: int,
     allowed_hotel_ids: Optional[List[str]],
 ) -> List[Dict[str, Any]]:
-        q_emb = self._embed(question)
+        #q_emb = self._embed(question)
 
         # --- حالت مقایسه‌ای: چند هتل ---
         if allowed_hotel_ids and len(allowed_hotel_ids) > 1:
@@ -258,7 +255,7 @@ class HotelComparison:
 
             for hid in allowed_hotel_ids:
                 res = self._collection.query(
-                    query_embeddings=[q_emb],
+                    query_texts=[question],
                     n_results=per_hotel,
                     where={"hotel_id": hid},   # فیلتر متادیتا
                     include=["documents", "metadatas", "distances"],
@@ -283,7 +280,7 @@ class HotelComparison:
 
         # --- حالت عادی (یک هتل یا بدون محدودیت) ---
         res = self._collection.query(
-            query_embeddings=[q_emb],
+            query_texts=[question],
             n_results=top_k,
             include=["documents", "metadatas", "distances"],
         )

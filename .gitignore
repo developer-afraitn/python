@@ -1,6 +1,6 @@
-/public/files/*
 .env
 .idea
+requirements-dev.txt
 piper-voices
 
 /develop.php
@@ -8,6 +8,7 @@ piper-voices
 /deploy-application-develop.exp
 /deploy-application-main.exp
 /outputs/*
+/libs/*
 
 
 __pycache__/
