@@ -45,10 +45,10 @@ class HotelDateExtractor:
     def extract(
         self,
         message: str,
-        prev_check_in: Optional[str],
-        prev_check_out: Optional[str],
-        prev_nights: Optional[int],
-    ) -> Tuple[Optional[date], Optional[date], Optional[int], str, str, List[date]]:
+        prev_check_in: Optional[str]|None,
+        prev_check_out: Optional[str]|None,
+        prev_nights: Optional[int]|None,
+    ) -> Tuple[Optional[date], Optional[date], Optional[int]]:
         """
         ورودی:
           - message: متن کاربر

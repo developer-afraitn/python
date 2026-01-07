@@ -2,6 +2,7 @@ from sqlalchemy import inspect
 from app.storage.db import engine
 
 # مدل‌هایی که می‌خوای اگر پاک شدند برگردند
+from app.storage.models.apiLogModel import ApiLog
 from app.storage.models.messageHistoryModel import MessageHistory
 from app.storage.models.memoryModel import Memory
 
@@ -11,6 +12,7 @@ def repair_missing_tables():
     required_models = [
             MessageHistory,
             Memory,
+            ApiLog
         ] 
 
     for model in required_models:

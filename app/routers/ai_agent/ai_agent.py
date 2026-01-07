@@ -33,6 +33,7 @@ class IntentResponse(BaseModel):
 
 @router.post("/ai")
 def ai_agent(payload: IntentRequest):
+    print('-------------------------------------------------------------------------------------------------------------')
     print('start')
     print(payload)
     intent = intent_service.detect_intent(user_id=payload.user_id, message=payload.message)

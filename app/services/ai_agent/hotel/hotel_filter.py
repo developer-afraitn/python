@@ -3,12 +3,20 @@ from __future__ import annotations
 from typing import Optional
 from datetime import datetime, timedelta
 
+from typing import Any, Dict, List, Union
+
 from app.exceptions import AppError
 from app.services.ai_agent.hotel.hotel_extractor import HotelExtractor
+from app.services.ai_agent.hotel.nationality_extractor import NationalityExtractor
+from app.services.ai_agent.hotel.passenger_extractor import PassengerExtractor
+from app.services.ai_agent.hotel.price_extractor import PriceExtractor
+from app.services.ai_agent.hotel.room_capacity_extractor import RoomCapacityExtractor
+from app.services.ai_agent.hotel.star_extractor import StarExtractor
 from app.storage.repo.memoryRepo import MemoryRepo
 from app.logging_config import get_logger
+from app.utils.PersianLettersNumber import PersianLettersNumber
 from app.utils.datetime_helper import to_date, to_iso_date_str, today_date,gregorian_to_jalali
-from app.utils.main_helper import http_request
+from app.utils.main_helper import http_request, currency_price
 from app.utils.ai_response_message import success_message
 from app.services.ai_agent.hotel.hotel_date_extractor import HotelDateExtractor
 
@@ -36,7 +44,7 @@ class HotelFilter:
         self._city_cache_at = datetime.now()
         return cities
 
-    def memory(self, user_id: str):
+    def memory(self, user_id: str)->dict[str, Any]|None:
         memory = memory_repo.find(user_id=user_id)
         if memory is not None:
             self.user_memory_id = memory.id
@@ -50,10 +58,36 @@ class HotelFilter:
 
     def handle(self, user_id: str, message: str):
 
+        """
+            فیلتر نهایی به صورت زیر است
+            {
+                "page":1,
+                "limit":3,
+                "city_id":760013,
+                "city_name":"کیش",
+                "check_in":"2026-01-08",
+                "check_out":"2026-01-11",
+                "passengers":[
+                    {
+                        "adult":2,
+                        "child":[3,4]
+                    }
+                ],
+                "hotel":[1000355,1000360],
+                "star":[1,2,3,4,5],
+                "nationality":["domestic","foreign"],
+                "room_capacity":[1,2,3,4],
+                "min_price":10000000,
+                "max_price":33000000,
+                "sorting":"price,asc"
+            }
+        """
+
         information = self.memory(user_id)
         if information is None:
             information = {"city": None, "check_in": None, "check_out": None}
 
+        print(information)
 
         city_found = self._extract_city(message)
         print(city_found)
@@ -69,7 +103,7 @@ class HotelFilter:
 
         if city_found is not None:
             city_name, city_id = city_found
-            information["city"] = city_name
+            information["city_name"] = city_name
             information["city_id"] = city_id
         if new_check_in is not None:
             information["check_in"] = new_check_in
@@ -79,6 +113,42 @@ class HotelFilter:
         # BUGFIX: safe serialize (date -> str), keep str as-is
         information["check_in"] = to_iso_date_str(information.get("check_in")) or information.get("check_in")
         information["check_out"] = to_iso_date_str(information.get("check_out")) or information.get("check_out")
+        information['night'] = new_night
+
+        # detect hotels
+        if information.get("city_id"):
+            hotel_extract=(HotelExtractor()).extract(message=message,city_id=information["city_id"],old_selected=information.get('hotel'))
+            if hotel_extract is not None:
+                information["hotel"] = hotel_extract
+            else:
+                information.pop("hotel", None)
+
+        #detect star
+        star_extract=(StarExtractor()).extract(message=message,old_selected=information.get('star'))
+        if star_extract is not None:
+            information["star"] = star_extract
+        else:
+            information.pop("star", None)
+
+        print('result star_extract',star_extract)
+        print('information',information)
+
+        #detect passenger room
+        (PassengerExtractor()).extract(message=message)
+        information['passengers'] = [{'adult': 1, 'child': []}]
+
+        #detect nationality
+        (NationalityExtractor()).extract(message=message)
+
+        #detect room capacity
+        (RoomCapacityExtractor()).extract(message=message)
+
+        #detect min , max price
+        (PriceExtractor()).extract(message=message)
+
+        information['limit'] = 3
+        information['page'] = 1
+
 
         # persist
         if self.user_memory_id:
@@ -86,9 +156,13 @@ class HotelFilter:
         else:
             memory_repo.create(user_id=user_id, information=information)
 
+
+
+
+
         # required fields
         required_fields = {
-            "city": "شهر مشخص نیست",
+            "city_name": "شهر مشخص نیست",
             "check_in": "تاریخ ورود مشخص نیست",
             "check_out": "تاریخ خروج مشخص نیست",
         }
@@ -103,7 +177,8 @@ class HotelFilter:
                 data=None,
             )
 
-        (HotelExtractor()).extract(message=message,city_id=information.get('city_id'))
+
+
         # date rules (assume format always valid)
         ci = to_date(information.get("check_in"))
         co = to_date(information.get("check_out"))
@@ -125,11 +200,8 @@ class HotelFilter:
                 detail={"check_in": ci.isoformat(), "check_out": co.isoformat()},
             )
         message=self.hotel_filter_summary_text(information)
-        information['night'] = new_night
-        information['limit'] = 3
-        information['page'] = 1
-        
-        information['passengers'] = [{'adult':1,'child':[]}]
+        if information.get("hotel") is not None:
+            information['hotel'] = [item["id"] for item in information['hotel']]
 
         return success_message(
             message=message,
@@ -145,13 +217,92 @@ class HotelFilter:
             if city_name in message:
                 return city_name, city_id
         return None
- 
+
+
     @staticmethod
-    def hotel_filter_summary_text(information: dict) -> str:
-        city = information["city"]
-
+    def hotel_filter_summary_text(detect: dict) -> str:
         # تاریخ‌های میلادی (ایزو) -> جلالی با فرمت PHP-like که خودت دادی
-        check_in_text = gregorian_to_jalali(information["check_in"], "l j F")
-        check_out_text = gregorian_to_jalali(information["check_out"], "l j F Y")
+        city_name = detect.get("city_name")
+        check_in_text = gregorian_to_jalali(detect["check_in"], "l j F")
+        check_out_text = gregorian_to_jalali(detect["check_out"], "l j F Y")
+        message = (
+            f"فیلتر برای شهر {city_name} "
+            f"با تاریخ ورود {check_in_text} "
+            f"و تاریخ خروج {check_out_text} "
+        )
 
-        return f"فیلتر برای شهر {city} با تاریخ ورود {check_in_text} و تاریخ خروج {check_out_text}"
+        # Star
+        star = detect.get("star")
+        if star:
+            star_list = sorted(map(int, star))
+            if len(star_list) >= 3 and (star_list[-1] - star_list[0] + 1) == len(star_list):
+                message += f" ، هتل های {star_list[0]} تا {star_list[-1]} ستاره"
+            else:
+                message += f" ، هتل های {' و '.join(map(str, star_list))} ستاره"
+
+        # Room capacity
+        room_capacity = detect.get("room_capacity")
+        if room_capacity:
+            cap_list = sorted(map(int, room_capacity))
+            if len(cap_list) >= 3 and (cap_list[-1] - cap_list[0] + 1) == len(cap_list):
+                message += f" ، اتاق های {cap_list[0]} تا {cap_list[-1]} تخته"
+            else:
+                message += f" ، اتاق های {' و '.join(map(str, cap_list))} تخته"
+
+        # Price range
+        min_price = detect.get("min_price")
+        max_price = detect.get("max_price")
+        if min_price or max_price:
+            message += " ، بازه قیمت"
+            if min_price:
+                message += f" از {currency_price(min_price,show_letter= True,show_label= False)}"
+            if max_price:
+                message += f" تا {currency_price(max_price,show_letter= True,show_label= False)}"
+            message += " تومن"
+        # Hotels
+        hotels = detect.get("hotel") or []
+        if hotels:
+            if len(hotels) == 1:
+                message += f" ، هتل {hotels[0].get('name')}"
+            else:
+                names = [h.get("name") for h in hotels if h.get("name")]
+                message += f" ، هتل های {' و '.join(names)}"
+
+        # Passengers
+        passengers = detect.get("passengers") or []
+        if len(passengers) == 1:
+            p = passengers[0]
+            message += f" ، {p.get('adult', 0)} نفر بزرگسال"
+            child = p.get("child") or []
+            if child:
+                message += f" و {len(child)} کودک {' و '.join(map(str, child))} ساله"
+
+        elif len(passengers) > 1:
+            for idx, p in enumerate(passengers):
+                message += (
+                    f" ، اتاق {(idx + 1)} شامل "
+                    f"{p.get('adult', 0)} نفر بزرگسال"
+                )
+                child = p.get("child") or []
+                if child:
+                    message += (
+                        f" و {len(child)} کودک "
+                        f"{' و '.join(map(str, child))} ساله"
+                    )
+
+        # Sorting
+        sorting_map = {
+            "star,asc": "کمترین ستاره",
+            "star,desc": "بیشترین ستاره",
+            "user_rate,asc": "کمترین امتیاز هتل",
+            "user_rate,desc": "بیشترین امتیاز هتل",
+            "price,asc": "کمترین قیمت",
+            "price,desc": "بیشترین قیمت",
+        }
+
+        sorting = detect.get("sorting")
+        if sorting:
+            message += f" ، مرتب سازی بر اساس {sorting_map.get(sorting, sorting)}"
+
+        message += " اعمال شد"
+        return message
