@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Union
 
 from app.exceptions import AppError
+from app.services.ai_agent.hotel.city_extractor import CityExtractor
 from app.services.ai_agent.hotel.hotel_extractor import HotelExtractor
 from app.services.ai_agent.hotel.nationality_extractor import NationalityExtractor
 from app.services.ai_agent.hotel.passenger_extractor import PassengerExtractor
@@ -31,18 +32,6 @@ class HotelFilter:
         self._city_cache_at = None
         self.date_extractor = HotelDateExtractor()
 
-    def _load_cities(self) -> dict[str, int]:
-        # اگر کش معتبره، همونو بده
-        if self._city_cache and self._city_cache_at and self._city_cache_at > datetime.now() - timedelta(hours=6):
-            return self._city_cache
-        r = http_request("https://tourgardan.com/api/info/city/search")
-        payload = r["response"]
-
-        cities = {item["text"]: item["id"] for item in payload.get("data", []) if item.get("text") and item.get("id")}
-
-        self._city_cache = cities
-        self._city_cache_at = datetime.now()
-        return cities
 
     def memory(self, user_id: str)->dict[str, Any]|None:
         memory = memory_repo.find(user_id=user_id)
@@ -88,23 +77,21 @@ class HotelFilter:
             information = {"city": None, "check_in": None, "check_out": None}
 
         print(information)
-
-        city_found = self._extract_city(message)
-        print(city_found)
-
+        processed_message,city_extract=(CityExtractor()).extract(message=message, old_selected=[{"name": information["city_name"],"id": information["city_id"]}] if information.get("city_name") else None)
+        print('city_extract',city_extract,processed_message)
         
         # ✅ استفاده از کلاس جدید
         new_check_in, new_check_out, new_night = self.date_extractor.extract(
-            message=message,
+            message=processed_message,
             prev_check_in=information.get("check_in"),
             prev_check_out=information.get("check_out"),
             prev_nights=information.get("night"),
         )
 
-        if city_found is not None:
-            city_name, city_id = city_found
-            information["city_name"] = city_name
-            information["city_id"] = city_id
+        if city_extract is not None:
+            found_city = city_extract[0]
+            information["city_name"] = found_city['name']
+            information["city_id"] = found_city['id']
         if new_check_in is not None:
             information["check_in"] = new_check_in
         if new_check_out is not None:
@@ -211,12 +198,6 @@ class HotelFilter:
             },
             request=[])
 
-    def _extract_city(self, message: str) -> Optional[tuple[str, int]]:
-        cities = self._load_cities()  # {"کیش": 760013, ...}
-        for city_name, city_id in cities.items():
-            if city_name in message:
-                return city_name, city_id
-        return None
 
 
     @staticmethod

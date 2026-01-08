@@ -1,3 +1,6 @@
+import re
+from typing import List
+
 import requests
 import time
 
@@ -73,3 +76,30 @@ def currency_price(price, show_letter=False, show_label=True):
         return price
 
     return None
+
+def wrap_words(text: str, words: List[str], label: str) -> str:
+    for word in words:
+        pattern = rf'\b{re.escape(word)}\b'
+        text = re.sub(pattern, f'[{label}({word})]', text)
+    return text
+
+
+def mask_bracketed(text: str):
+    mapping = {}
+    counter = 0
+
+    def replacer(match):
+        nonlocal counter
+        counter += 1
+        key = f"__BRACKETED{counter}__"
+        mapping[key] = match.group(1)
+        return key
+
+    new_text = re.sub(r'\[([^\]]+)\]', replacer, text)
+    return new_text, mapping
+
+def unmask_bracketed(text: str, mapping: dict):
+    for key, value in mapping.items():
+        pattern = re.compile(re.escape(key), re.IGNORECASE)
+        text = pattern.sub(f"[{value}]", text)
+    return text
