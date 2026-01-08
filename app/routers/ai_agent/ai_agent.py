@@ -31,8 +31,15 @@ class IntentResponse(BaseModel):
     intent: str  # one of: filter | comparison | greeting | other
 
 
+
+
+#from app.jobs.test_jobs import do_something
+#from app.dispatch import dispatch
 @router.post("/ai")
 def ai_agent(payload: IntentRequest):
+    #dispatch(do_something, 1234333356,'aliiiii', queue="low") use queue
+    #dispatch(do_something, user_id=1234333356,name='aliiiiieeeee', queue="low")
+    #get_queue("low").enqueue(do_something, 122222223)
     print('-----------------------------------------START---------------------------------------------------')
     print('start')
     print(payload)

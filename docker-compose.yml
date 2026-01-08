@@ -58,6 +58,48 @@ services:
     networks:
       - app_net
 
+  app:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+    networks:
+      - app_net
+
+  worker_default:
+    build: .
+    command: rq worker default
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+    volumes:
+      - ./app:/app/app
+    networks:
+      - app_net
+
+  worker_low:
+    build: .
+    command: rq worker low
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+    volumes:
+      - ./app:/app/app
+    networks:
+      - app_net
+
 volumes:
   postgres_data:
     name: "${COMPOSE_PROJECT_NAME:-myapp}_postgres_data"
