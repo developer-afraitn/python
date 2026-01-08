@@ -22,6 +22,7 @@ class CityExtractor:
     @staticmethod
     def extract(message: str, old_selected: list | None):
         print('\n\n-----------------------------------------START CITY EXTRACTOR---------------------------------------------------\n\n')
+        print('message',message)
         process_message,masked=mask_bracketed(message)
 
         extract = []
@@ -39,6 +40,7 @@ class CityExtractor:
 
         print('extract', extract)
         print('old_selected',old_selected)
+        print('processed_message',processed_message)
         print('\n\n-----------------------------------------END CITY EXTRACTOR---------------------------------------------------\n\n')
         if extract:
             return processed_message,extract

@@ -78,10 +78,17 @@ def currency_price(price, show_letter=False, show_label=True):
     return None
 
 def wrap_words(text: str, words: List[str], label: str) -> str:
-    for word in words:
-        pattern = rf'\b{re.escape(word)}\b'
-        text = re.sub(pattern, f'[{label}({word})]', text)
-    return text
+    # حذف تکراری‌ها با حفظ ترتیب
+    words = list(dict.fromkeys(words))
+
+    escaped_words = list(map(re.escape, words))
+
+    # الگو:
+    # 1) کلمه جزئی از [label(...)] نباشد  ← negative lookbehind
+    # 2) خود کلمه match شود
+    pattern = rf'(?<!\[{label}\()({"|".join(escaped_words)})\b'
+
+    return re.sub(pattern, rf'[{label}(\1)]', text)
 
 
 def mask_bracketed(text: str):

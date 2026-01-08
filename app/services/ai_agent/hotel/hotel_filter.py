@@ -102,20 +102,21 @@ class HotelFilter:
         information["check_out"] = to_iso_date_str(information.get("check_out")) or information.get("check_out")
         information['night'] = new_night
 
+        #detect star
+        star_extract=(StarExtractor()).extract(message=processed_message,old_selected=information.get('star'))
+        if star_extract is not None:
+            information["star"] = star_extract
+        else:
+            information.pop("star", None)
+
         # detect hotels
         if information.get("city_id"):
-            hotel_extract=(HotelExtractor()).extract(message=message,city_id=information["city_id"],old_selected=information.get('hotel'))
+            _,hotel_extract=(HotelExtractor()).extract(message=processed_message,city_id=information["city_id"],old_selected=information.get('hotel'))
             if hotel_extract is not None:
                 information["hotel"] = hotel_extract
             else:
                 information.pop("hotel", None)
 
-        #detect star
-        star_extract=(StarExtractor()).extract(message=message,old_selected=information.get('star'))
-        if star_extract is not None:
-            information["star"] = star_extract
-        else:
-            information.pop("star", None)
 
         print('result star_extract',star_extract)
         print('information',information)
