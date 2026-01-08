@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 from app.utils.main_helper import mask_bracketed, unmask_bracketed, wrap_words
 
@@ -57,35 +58,42 @@ class StarExtractor:
         pass
 
     @staticmethod
-    def extract(message: str, old_selected:list|None):
+    def extract(message: str, old_selected: Optional[list] = None):
         print('\n\n-----------------------------------------START STAR EXTRACTOR---------------------------------------------------\n\n')
-        print('message',message)
-        process_message,masked=mask_bracketed(message)
+        print('message', message)
 
-        extract=is_remove_star_filter(process_message)
-        print('is_remove_star_filter',extract)
+        process_message, masked = mask_bracketed(message)
+
+        # 1) remove star filter
+        extract = is_remove_star_filter(process_message)
+        print('extract', extract)
         if extract:
-            processed_message=unmask_bracketed(process_message,masked)
-            return processed_message,None
+            processed_message = unmask_bracketed(process_message, masked)
+            return processed_message, None
 
-        process_message,extract=extract_stars_to(process_message)
-        print('extract_stars_to',extract)
-        if extract:
-            processed_message=unmask_bracketed(process_message,masked)
-            return processed_message,extract
+        # 2) extract stars (try strategies in order)
+        strategies = [
+            ("extract_stars_to", extract_stars_to),
+            ("extract_stars_and", extract_stars_and),
+            ("extract_single_star_patterns", extract_single_star_patterns),
+        ]
 
-        process_message,extract=extract_stars_and(process_message)
-        print('extract_stars_and',extract)
-        if extract:
-            processed_message=unmask_bracketed(process_message,masked)
-            return processed_message,extract
+        extract = None
+        for label, fn in strategies:
+            process_message, extract = fn(process_message)
+            print(label, extract)
+            if extract:
+                extract = list(dict.fromkeys(extract))
+                break
 
-        process_message,extract=extract_single_star_patterns(process_message)
-        print('extract_single_star_patterns',extract)
-        processed_message=unmask_bracketed(process_message,masked)
-        if extract:
-            return processed_message,extract
+        processed_message = unmask_bracketed(process_message, masked)
 
+        print('extract', extract)
+        print('old_selected',old_selected)
+        print('processed_message',processed_message)
         print('\n\n-----------------------------------------END STAR EXTRACTOR---------------------------------------------------\n\n')
-        return processed_message,old_selected
+        if extract:
+            return processed_message, extract
+
+        return processed_message, old_selected
     

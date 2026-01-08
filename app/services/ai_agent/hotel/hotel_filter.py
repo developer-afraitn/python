@@ -103,7 +103,7 @@ class HotelFilter:
         information['night'] = new_night
 
         #detect star
-        star_extract=(StarExtractor()).extract(message=processed_message,old_selected=information.get('star'))
+        processed_message,star_extract=(StarExtractor()).extract(message=processed_message,old_selected=information.get('star'))
         if star_extract is not None:
             information["star"] = star_extract
         else:
@@ -111,28 +111,30 @@ class HotelFilter:
 
         # detect hotels
         if information.get("city_id"):
-            _,hotel_extract=(HotelExtractor()).extract(message=processed_message,city_id=information["city_id"],old_selected=information.get('hotel'))
+            processed_message,hotel_extract=(HotelExtractor()).extract(message=processed_message,city_id=information["city_id"],old_selected=information.get('hotel'))
             if hotel_extract is not None:
                 information["hotel"] = hotel_extract
             else:
                 information.pop("hotel", None)
 
 
-        print('result star_extract',star_extract)
-        print('information',information)
+        #detect room_capacity
+        processed_message,room_capacity_extract=(RoomCapacityExtractor()).extract(message=processed_message,old_selected=information.get('room_capacity'))
+        if room_capacity_extract is not None:
+            information["room_capacity"] = room_capacity_extract
+        else:
+            information.pop("room_capacity", None)
 
         #detect passenger room
-        (PassengerExtractor()).extract(message=message)
+        (PassengerExtractor()).extract(message=processed_message)
         information['passengers'] = [{'adult': 1, 'child': []}]
 
         #detect nationality
-        (NationalityExtractor()).extract(message=message)
+        (NationalityExtractor()).extract(message=processed_message)
 
-        #detect room capacity
-        (RoomCapacityExtractor()).extract(message=message)
 
         #detect min , max price
-        (PriceExtractor()).extract(message=message)
+        (PriceExtractor()).extract(message=processed_message)
 
         information['limit'] = 3
         information['page'] = 1
