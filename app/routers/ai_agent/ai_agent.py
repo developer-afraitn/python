@@ -39,11 +39,11 @@ class IntentResponse(BaseModel):
 def ai_agent(payload: IntentRequest):
     #dispatch(do_something, 1234333356,'aliiiii', queue="low") use queue
     #dispatch(do_something, user_id=1234333356,name='aliiiiieeeee', queue="low")
-    #get_queue("low").enqueue(do_something, 122222223)
     print('-----------------------------------------START---------------------------------------------------')
     print('start')
     print(payload)
     intent = intent_service.detect_intent(user_id=payload.user_id, message=payload.message)
+    return 'ok'
     print('intent',intent)
     match intent:
         case 'filter':

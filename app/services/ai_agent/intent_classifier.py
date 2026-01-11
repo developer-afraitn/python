@@ -5,12 +5,19 @@ from enum import Enum
 from typing import List, Optional, Tuple, Deque
 from collections import deque
 import re
+
+from app.dispatch import dispatch
+from app.jobs.talk_jobs import talk_process
 from app.logging_config import get_logger
+from app.storage.chromadb import ChromaDb
+
 
 from app.storage.repo.messageHistoryRepo import MessageHistoryRepo
 
 # --- Optional: Persian normalization (Hazm) ---
 from hazm import Normalizer
+
+from app.utils.main_helper import http_request
 
 logger = get_logger("ai-agent")
 history_repo = MessageHistoryRepo()
@@ -96,10 +103,21 @@ class IntentClassifier:
         full_text_norm = self._normalize(full_text)
         current_norm = self._normalize(message)
 
-        # 1) Rule-based (fast)
-        intent = self._predict_by_rules(full_text=full_text_norm, current_message=current_norm)
+        chromadb = ChromaDb()
+        db_len = len(chromadb.get_all()['ids'])
+        print('db_len',db_len)
+
+        if db_len > 10:
+            intent = chromadb.ask(message,n_results=3)
+        else:
+            # 1) Rule-based (fast)
+            intent = self._predict_by_rules(full_text=full_text_norm, current_message=current_norm).value
+
+        #dispatch(talk_process, message)
+        talk_process(message)
+
         if intent is not None:
-            return intent.value
+            return intent
 
         # 2) ML fallback (optional)
         if self.ml.enabled and self.model is not None and self.vectorizer is not None:
