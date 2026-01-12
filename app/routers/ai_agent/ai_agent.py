@@ -2,6 +2,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, field_validator
 from app.logging_config import get_logger
+from app.services.ai_agent.hotel.memory import Memory
 
 from app.services.ai_agent.intent_classifier import IntentService
 from app.services.ai_agent.hotel.hotel_filter import HotelFilter
@@ -40,10 +41,14 @@ def ai_agent(payload: IntentRequest):
     #dispatch(do_something, 1234333356,'aliiiii', queue="low") use queue
     #dispatch(do_something, user_id=1234333356,name='aliiiiieeeee', queue="low")
     print('-----------------------------------------START---------------------------------------------------')
+    user_memory_id,information=(Memory()).info(payload.user_id)
     print('start')
-    print(payload)
+    print('payload',payload)
+    print('user_memory_id',user_memory_id)
+    print('information',information)
+
     intent = intent_service.detect_intent(user_id=payload.user_id, message=payload.message)
-    return 'ok'
+    #return 'ok'
     print('intent',intent)
     match intent:
         case 'filter':

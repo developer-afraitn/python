@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from typing import Optional
 from datetime import datetime, timedelta
 
 from typing import Any, Dict, List, Union
 
+from app.dispatch import dispatch
 from app.exceptions import AppError
+from app.jobs.hotel_filter_jobs import hotel_filter_process
 from app.services.ai_agent.hotel.city_extractor import CityExtractor
 from app.services.ai_agent.hotel.hotel_extractor import HotelExtractor
+from app.services.ai_agent.hotel.memory import Memory
 from app.services.ai_agent.hotel.nationality_extractor import NationalityExtractor
 from app.services.ai_agent.hotel.passenger_extractor import PassengerExtractor
 from app.services.ai_agent.hotel.price_extractor import PriceExtractor
@@ -15,9 +17,8 @@ from app.services.ai_agent.hotel.room_capacity_extractor import RoomCapacityExtr
 from app.services.ai_agent.hotel.star_extractor import StarExtractor
 from app.storage.repo.memoryRepo import MemoryRepo
 from app.logging_config import get_logger
-from app.utils.PersianLettersNumber import PersianLettersNumber
 from app.utils.datetime_helper import to_date, to_iso_date_str, today_date,gregorian_to_jalali
-from app.utils.main_helper import http_request, currency_price
+from app.utils.main_helper import currency_price
 from app.utils.ai_response_message import success_message
 from app.services.ai_agent.hotel.hotel_date_extractor import HotelDateExtractor
 
@@ -27,23 +28,10 @@ memory_repo = MemoryRepo()
 class HotelFilter:
 
     def __init__(self):
-        self.user_memory_id = None
         self._city_cache = None
         self._city_cache_at = None
         self.date_extractor = HotelDateExtractor()
 
-
-    def memory(self, user_id: str)->dict[str, Any]|None:
-        memory = memory_repo.find(user_id=user_id)
-        if memory is not None:
-            self.user_memory_id = memory.id
-
-            # اگر بیشتر از ۱۰ ساعت گذشته، مموری را نادیده بگیر
-            if memory.updated_at < datetime.now() - timedelta(hours=10):
-                return None
-
-            return memory.information
-        return None
 
     def handle(self, user_id: str, message: str):
 
@@ -71,8 +59,8 @@ class HotelFilter:
                 "sorting":"price,asc"
             }
         """
-
-        information = self.memory(user_id)
+        memory =Memory()
+        user_memory_id, information = memory.info(user_id)
         if information is None:
             information = {"city": None, "check_in": None, "check_out": None}
 
@@ -138,23 +126,18 @@ class HotelFilter:
 
         information['limit'] = 3
         information['page'] = 1
-
+        information['talk_about'] = 'filter'
 
         # persist
-        if self.user_memory_id:
-            memory_repo.update(id=self.user_memory_id, information=information)
-        else:
-            memory_repo.create(user_id=user_id, information=information)
+        memory.update(user_memory_id,user_id,information)
 
-
-
-
-
+        #dispatch(hotel_filter_process, user_id,message,information)
+        hotel_filter_process(user_id,message,information)
         # required fields
         required_fields = {
-            "city_name": "شهر مشخص نیست",
-            "check_in": "تاریخ ورود مشخص نیست",
-            "check_out": "تاریخ خروج مشخص نیست",
+            "city_name" : "شهر مشخص نیست",
+            "check_in" : "تاریخ ورود مشخص نیست",
+            "check_out" : "تاریخ خروج مشخص نیست",
         }
 
         missing = [key for key in required_fields if information.get(key) in (None, "", [])]

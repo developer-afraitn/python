@@ -95,7 +95,7 @@ class IntentClassifier:
 
         self.normalizer = Normalizer()
 
-    def predict(self, message: str, history: List[str] | Deque[str] | None = None) -> str:
+    def predict(self,user_id: str, message: str, history: List[str] | Deque[str] | None = None) -> str:
         """
         Returns ONLY one word: filter | comparison | greeting | other
         """
@@ -107,14 +107,24 @@ class IntentClassifier:
         db_len = len(chromadb.get_all()['ids'])
         print('db_len',db_len)
 
+        intent = None
         if db_len > 10:
-            intent = chromadb.ask(message,n_results=3)
-        else:
+            intent = chromadb.ask(message,n_results=1)
+            if len(intent["ids"]):
+                intent=intent["metadatas"][0][0]['feature']
+            else:
+                intent=None
+
+        if intent is None:
             # 1) Rule-based (fast)
-            intent = self._predict_by_rules(full_text=full_text_norm, current_message=current_norm).value
+            intent = self._predict_by_rules(full_text=full_text_norm, current_message=current_norm)
+            if intent is not None:
+                intent=intent.value
+            else:
+                intent=None
 
         #dispatch(talk_process, message)
-        talk_process(message)
+        talk_process(user_id,message)
 
         if intent is not None:
             return intent
@@ -265,7 +275,7 @@ class IntentService:
 
         history =history_repo.get_recent_user_history(user_id=user_id, limit=self.history_limit)
         print('history',history)
-        intent = self.classifier.predict(message=message, history=history)
+        intent = self.classifier.predict(user_id=user_id,message=message, history=history)
         print('intent',intent)
         # logger.info(
         #     "intent_detected",

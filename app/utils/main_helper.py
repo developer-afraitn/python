@@ -14,7 +14,7 @@ def http_request(
     params: dict | None = None,
     data: dict | None = None,
     headers: dict | None = None,
-    timeout: int = 10,
+    timeout: int = 60,
 ):
     start_time = time.perf_counter()
 
@@ -78,6 +78,8 @@ def currency_price(price, show_letter=False, show_label=True):
     return None
 
 def wrap_words(text: str, words: List[str], label: str) -> str:
+    if not words :
+        return text
     # حذف تکراری‌ها با حفظ ترتیب
     words = list(dict.fromkeys(words))
 
