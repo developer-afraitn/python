@@ -8,7 +8,7 @@ memory_repo = MemoryRepo()
 
 class Memory:
     def __init__(self):
-        print('ini')
+        pass
 
     def info(self,user_id: str):
         memory = memory_repo.find(user_id=user_id)

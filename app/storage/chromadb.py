@@ -1,4 +1,7 @@
+import array
 import os
+from typing import Any
+
 import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
@@ -72,12 +75,14 @@ class ChromaDb:
         return self.collection.get()
 
     # 3️⃣ پرسیدن سؤال
-    def ask(self, question: str, n_results=1):
+    def ask(self, question: str, n_results: object = 1, where : Any = None) -> Any:
+        if where is None:
+            where = {}
         if self.embedding_type == "default":
-            result = self.collection.query(query_texts=[question], n_results=n_results)
+            result = self.collection.query(query_texts=[question], n_results=n_results,where=where)
         else:
             # embed سؤال با مدل SentenceTransformer
             q_emb = self.st_model.encode([question]).tolist()
-            result = self.collection.query(query_embeddings=q_emb, n_results=n_results)
+            result = self.collection.query(query_embeddings=q_emb, n_results=n_results,where=where)
 
         return result

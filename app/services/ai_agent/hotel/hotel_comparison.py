@@ -1,374 +1,125 @@
-import os, json, re
-from typing import Any, Dict, List, Optional
+import json
 
-import requests
-import chromadb
-from chromadb.utils import embedding_functions
-from app.logging_config import get_logger
+from app.exceptions import AppError
+from app.services.ai_agent.hotel.city_extractor import CityExtractor
+from app.services.ai_agent.hotel.hotel_extractor import HotelExtractor
+from app.services.ai_agent.hotel.memory import Memory
+from app.services.ai_agent.llm import Llm
+from app.storage.chromadb import ChromaDb
+from app.utils.ai_response_message import success_message
+from app.utils.main_helper import http_request
 
-logger = get_logger("ai-agent")
 
 class HotelComparison:
-    """
-    Gemini + Chroma RAG over Tourgardan review JSON endpoints
-    Public API:
-      - index_many(hotel_ids)
-      - ask(session_id, question, top_k=8)
-    """
 
-    def __init__(
-        self,
-        base_url_template: str = "https://tourgardan.com/hotel/review/{hotel_id}/obj",
-        hotels_map: Optional[Dict[str, str]] = None,
-        persist_dir: str = "./chroma_hotels",
-        collection_name: str = "hotel_kb",
-        embed_model: str = "gemini-embedding-001",
-        chat_model: str = "gemini-2.5-flash",
-        request_timeout: int = 30,
-    ):
-        self.base_url_template = base_url_template
-        self.hotels_map = hotels_map or {
-            "اکسلسیور": "1018483",
-            "آریا": "1018392",
-            "امیرکبیر": "1002353",
-            "کوروش": "1001612",
-            "میراژ": "1001477",
-            "داریوش": "1000336",
-            "سان رایز": "1000354",
-            "ترنج": "1001104",
-        }
-        self.persist_dir = persist_dir
-        self.collection_name = collection_name
-        self.embed_model = embed_model
-        self.chat_model = chat_model
-        self.request_timeout = request_timeout
 
-        api_key = "AIzaSyArWDyyLm5sAaQap1Zl3gJ14j-dB5q_aY0"
-        #api_key = "AIzaSyB-gLGTy4b1xje29WJzFwYUAbyGMDsnZYo"
-        self._gemini_api_key = api_key
-        self._gemini_api_base = "https://generativelanguage.googleapis.com/v1beta"
+    def __init__(self):
+        pass
 
-        # Chroma collection
-        self._collection = self._get_collection()
 
-        # In-memory session memory (production: replace with Redis)
-        # session_id -> {"last_hotels":[...]}
-        self._memory: Dict[str, Dict[str, Any]] = {}
+    def handle(self, user_id: str, message: str):
+        memory =Memory()
+        user_memory_id, information = memory.info(user_id)
+        if information is None:
+            information = {"city_id": None}
 
-        # Embedding function (offline ONNX)
-        self._embedding_function = embedding_functions.DefaultEmbeddingFunction()
-        self._embedding_function.model_path = os.path.join(os.getcwd(), "libs/all-MiniLM-L6-v2/model.onnx")
+        print(information)
+        processed_message,city_extract=(CityExtractor()).extract(message=message, old_selected=[{"name": information["city_name"],"id": information["city_id"]}] if information.get("city_name") else None)
+        print('city_extract',city_extract,processed_message)
 
-    # -------------------------
-    # Public methods (ONLY TWO)
-    # -------------------------
-    def index_many(self, hotel_ids: List[str]) -> Dict[str, Any]:
-        """
-        Fetches JSON for each hotel ID and indexes into Chroma.
-        Returns per-hotel stats.
-        """
-        results = []
-        for hid in hotel_ids:
-            url = self.base_url_template.format(hotel_id=hid)
-            payload = self._fetch_json(url)
-            docs = self._build_docs(payload, source_url=url, hotel_id=hid)
-            stats = self._upsert_docs(docs)
-            results.append({"hotel_id": hid, "url": url, "stats": stats})
-        return {"status": "indexed", "results": results}
+        if city_extract is not None:
+            found_city = city_extract[0]
+            information["city_name"] = found_city['name']
+            information["city_id"] = found_city['id']
 
-    def ask(self, session_id: str, question: str, top_k: int = 8) -> Dict[str, Any]:
-        """
-        Answers a question. Keeps conversational memory per session_id.
-        If hotel names/ids are mentioned, updates memory.
-        If not mentioned, uses last_hotels from memory (follow-up questions).
-        """
-        resolved = self._resolve_hotels(session_id, question)
+        # detect hotels
+        if information.get("city_id"):
+            processed_message,hotel_extract=(HotelExtractor()).extract(message=processed_message,city_id=information["city_id"],old_selected=information.get('hotel'))
+            if hotel_extract is not None:
+                information["hotel"] = hotel_extract
+            else:
+                information.pop("hotel", None)
 
-        # Constrain retrieval to resolved hotels when possible (better for comparisons/followups)
-        allowed = resolved if resolved else None
-        hits = self._retrieve(question, top_k=top_k, allowed_hotel_ids=allowed)
 
-        answer = self._generate_answer(question, hits, resolved)
+        # persist
+        memory.update(user_memory_id,user_id,information)
 
-        # Slim debug info
-        retrieved = [
-            {
-                "type": h["meta"].get("type"),
-                "hotel_id": h["meta"].get("hotel_id"),
-                "review_id": h["meta"].get("review_id"),
-                "distance": h["distance"],
-                "source_url": h["meta"].get("source_url"),
-            }
-            for h in hits
-        ]
-
-        return {
-            "answer": answer,
-            #"answer": 'پاسخ',
-            "resolved_hotel_ids": resolved,
-            "retrieved": retrieved,
+        required_fields = {
+            "city_name": "شهر مشخص نیست",
+            "hotel": "هتلی برای مقایسه وارد نشده است",
         }
 
-    # -------------------------
-    # Private helpers
-    # -------------------------
-    def _get_collection(self):
-        ch = chromadb.PersistentClient(path=self.persist_dir)
-        try:
-            return ch.get_collection(self.collection_name)
-        except Exception:
-            return ch.create_collection(
-                name=self.collection_name,
-                embedding_function=embedding_functions.DefaultEmbeddingFunction()
+        missing = [key for key in required_fields if information.get(key) in (None, "", [])]
+
+        if missing:
+            raise AppError(
+                status=400,
+                message=required_fields[missing[0]],
             )
-
-    @staticmethod
-    def _s(x: Any) -> str:
-        if x is None:
-            return ""
-        if isinstance(x, (dict, list)):
-            return json.dumps(x, ensure_ascii=False)
-        return str(x)
-
-    def _fetch_json(self, url: str) -> Dict[str, Any]:
-        r = requests.get(url, timeout=self.request_timeout)
-        r.raise_for_status()
-        return r.json()
-
-    def _embed(self, text: str) -> List[float]:
-        emb = self._embedding_function(text)
-        if hasattr(emb, "tolist"):
-            return emb.tolist()
-        if isinstance(emb, dict) and "values" in emb:
-            return emb["values"]
-        return list(emb)
-
-    def _build_docs(self, payload: Dict[str, Any], source_url: str, hotel_id: str) -> List[Dict[str, Any]]:
-        """
-        This endpoint is review-heavy. We index:
-          1) hotel summary doc
-          2) each review comment doc (objects containing "comment")
-        """
-        docs: List[Dict[str, Any]] = []
-        data = payload.get("data", {}) if isinstance(payload, dict) else {}
-
-        name_fa = self._s(data.get("name_fa"))
-        name_en = self._s(data.get("name_en"))
-        short_desc = self._s(data.get("short_description_fa"))
-
-        hotel_summary = "\n".join([
-            f"SourceURL: {source_url}",
-            f"HotelID: {hotel_id}",
-            f"NameFA: {name_fa}",
-            f"NameEN: {name_en}",
-            f"ShortDescriptionFA: {short_desc}",
-            "RawHotelData: " + self._s(data),
-        ])
-
-        docs.append({
-            "id": f"hotel::{hotel_id}",
-            "text": hotel_summary,
-            "meta": {"type": "hotel", "hotel_id": hotel_id, "name_fa": name_fa, "source_url": source_url}
-        })
-
-        def walk(obj: Any):
-            if isinstance(obj, dict):
-                if "comment" in obj and isinstance(obj["comment"], str):
-                    rid = self._s(obj.get("id") or f"rand_{abs(hash(obj['comment']))}")
-                    review_text = "\n".join([
-                        f"SourceURL: {source_url}",
-                        f"HotelID: {hotel_id}",
-                        f"HotelNameFA: {name_fa}",
-                        f"ReviewID: {rid}",
-                        f"UserName: {self._s(obj.get('user_name'))}",
-                        f"CreatedAt: {self._s(obj.get('created_at'))}",
-                        f"Comment: {obj['comment']}",
-                    ])
-                    docs.append({
-                        "id": f"review::{hotel_id}::{rid}",
-                        "text": review_text,
-                        "meta": {"type": "review", "hotel_id": hotel_id, "review_id": rid, "source_url": source_url}
-                    })
-                for v in obj.values():
-                    walk(v)
-            elif isinstance(obj, list):
-                for it in obj:
-                    walk(it)
-
-        walk(data)
-        return docs
-
-    def _upsert_docs(self, docs: List[Dict[str, Any]]) -> Dict[str, Any]:
-        # best-effort existing ids
-        try:
-            existing = set(self._collection.get(include=[]).get("ids", []))
-        except Exception:
-            existing = set()
-
-        added = 0
-        for d in docs:
-            if d["id"] in existing:
-                continue
-            self._collection.add(
-                ids=[d["id"]],
-                documents=[d["text"]],
-                metadatas=[d["meta"]],
-            )
-            added += 1
-        return {"added": added, "built": len(docs)}
-
-    def _extract_hotel_ids_from_question(self, question: str) -> List[str]:
-        found: List[str] = []
-
-        # Persian names
-        for name, hid in self.hotels_map.items():
-            if name in question:
-                found.append(hid)
-
-        # numeric ids in question
-        for m in re.findall(r"\b(10\d{5,6}|100\d{4,6})\b", question):
-            if m not in found:
-                found.append(m)
-
-        return found
-
-    def _resolve_hotels(self, session_id: str, question: str) -> List[str]:
-        mentioned = self._extract_hotel_ids_from_question(question)
-        if mentioned:
-            self._memory.setdefault(session_id, {})["last_hotels"] = mentioned
-            return mentioned
-
-        return self._memory.get(session_id, {}).get("last_hotels", [])
-
-    def _retrieve(
-    self,
-    question: str,
-    top_k: int,
-    allowed_hotel_ids: Optional[List[str]],
-) -> List[Dict[str, Any]]:
-        #q_emb = self._embed(question)
-
-        # --- حالت مقایسه‌ای: چند هتل ---
-        if allowed_hotel_ids and len(allowed_hotel_ids) > 1:
-            per_hotel = max(1, top_k // len(allowed_hotel_ids))
-            hits: List[Dict[str, Any]] = []
-
-            for hid in allowed_hotel_ids:
-                res = self._collection.query(
-                    query_texts=[question],
-                    n_results=per_hotel,
-                    where={"hotel_id": hid},   # فیلتر متادیتا
-                    include=["documents", "metadatas", "distances"],
-                )
-
-                for doc, meta, dist in zip(
-                    res["documents"][0],
-                    res["metadatas"][0],
-                    res["distances"][0],
-                ):
-                    hits.append(
-                        {
-                            "doc": doc,
-                            "meta": meta,
-                            "distance": dist,
-                        }
-                    )
-
-            # مرتب‌سازی نهایی بر اساس distance (کمتر = مرتبط‌تر)
-            hits.sort(key=lambda x: x["distance"])
-            return hits[:top_k]
-
-        # --- حالت عادی (یک هتل یا بدون محدودیت) ---
-        res = self._collection.query(
-            query_texts=[question],
-            n_results=top_k,
-            include=["documents", "metadatas", "distances"],
-        )
-
-        hits: List[Dict[str, Any]] = []
-        for doc, meta, dist in zip(
-            res["documents"][0],
-            res["metadatas"][0],
-            res["distances"][0],
-        ):
-            if allowed_hotel_ids and meta.get("hotel_id") not in allowed_hotel_ids:
-                continue
-            hits.append(
-                {
-                    "doc": doc,
-                    "meta": meta,
-                    "distance": dist,
-                }
-            )
-
-        # اگر فیلتر باعث شد هیچی نیاد، fallback به نتایج آزاد
-        if allowed_hotel_ids and not hits:
-            for doc, meta, dist in zip(
-                res["documents"][0],
-                res["metadatas"][0],
-                res["distances"][0],
-            ):
-                hits.append(
+        print(information)
+        hotels=[]
+        chroma_db=ChromaDb()
+        hotel_details=[]
+        for item in information['hotel']:
+            response=http_request(f"https://tourgardan.com/hotel/review/{item['id']}/obj")
+            if response['status_code'] == 200:
+                hotel_info=response['response']['data']
+                hotel_details.append(hotel_info)
+                chroma_db.save_list([
                     {
-                        "doc": doc,
-                        "meta": meta,
-                        "distance": dist,
+                        'id': hotel_info['id'],
+                        'document': json.dumps(self.pruning_data(hotel_info), ensure_ascii=False),
+                        'metadata': {'type': 'hotel_info'}
                     }
-                )
+                ])
+                hotels.append(response['response']['data'])
 
-        return hits
+        hotel_ids=[item['id'] for item in hotels]
+        result_ask_hotel=[]
+        hotels=[]
+        for item in hotel_ids:
+            find_hotel = chroma_db.ask(message,n_results=len(hotel_ids),where={"id":item})#"type": "hotel_info",
+            if len(find_hotel['ids']):
+                for hotel in hotel_details:
+                    if f"{hotel['id']}" == find_hotel['ids'][0][0]:
+                        hotels.append(hotel)
+                result_ask_hotel.append(json.loads(find_hotel['documents'][0][0]))
 
-    def _generate_answer(self, question: str, hits: List[Dict[str, Any]], resolved_hotel_ids: List[str]) -> str:
-        context = "\n\n---\n\n".join([h["doc"] for h in hits])
+        prompt=f'با توجه به اطلاعات هتل به سوال کاربر پاسخ بده {result_ask_hotel}'
+        response = (Llm()).ollama_model(prompt, message)
+        answer='جزییات هتل را میتوانید مشاهده و مقایسه کنید'
+        if response["status_code"] == 200:
+            answer=response["response"]["message"]["content"]
 
-        system_instruction = (
-            "تو یک دستیار اطلاعات هتل‌ها هستی. "
-            "فقط بر اساس CONTEXT پاسخ بده و حدس نزن. "
-            "اگر پاسخ در CONTEXT نبود، دقیقاً بگو: «اطلاعات کافی در داده‌های موجود نیست.» "
-            "اگر سوال مقایسه‌ای است، مزایا/معایب هر هتل را فقط از روی داده‌ها کنار هم بگذار. "
-            "اگر سوال دنباله‌دار است و کاربر نام هتل را نگفته، از resolved_hotel_ids استفاده کن."
-        )
-
-        prompt = f"""resolved_hotel_ids: {resolved_hotel_ids}
-
-CONTEXT:
-{context}
-
-Question (FA):
-{question}
-"""
-        url = f"{self._gemini_api_base}/models/{self.chat_model}:generateContent?key={self._gemini_api_key}"
-        #params = {"key": self._gemini_api_key}
-        payload = {
-            "systemInstruction": {"parts": [{"text": system_instruction}]},
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [{"text": prompt}],
-                }
-            ],
-            "generationConfig": {"temperature": 0.0},
-        }
-        logger.info("_generate_answer",payload=payload)
-
-
-        #r = requests.post(url, params=params, json=payload, timeout=120)
-        r = requests.post(
-            "https://tg.aiburger.ir/gemini2.php",
-            data={
-                "url": url,
-                "payload": json.dumps(payload, ensure_ascii=False),
+        return success_message(
+            message=answer,
+            type='hotel-comparisons',
+            result={
+                "hotels":hotels
             },
-           timeout=120,
+            request=[]
         )
-        r.raise_for_status()
-        data = r.json()
-        logger.info("_generate_answer",url=url,data=data)
 
-        candidates = data.get("candidates") or []
-        if not candidates:
-            return ""
-        parts = (candidates[0].get("content") or {}).get("parts") or []
-        if not parts:
-            return ""
-        return parts[0].get("text") or ""
+    def pruning_data(self,hotel):
+        information = {
+            'id': hotel['id'],
+            'name': hotel['name_fa'],
+            'short_description': hotel['short_description_fa'],
+            'category': hotel['category']['name_fa'],
+            'facilities': [item['name'] for item in hotel['facilities']],
+            'star': hotel['star'],
+            'address': hotel['address_fa'],
+            'city': hotel['city']['name_fa'],
+            'website': hotel['website'],
+            'score_avg': hotel['score_avg'],
+            'create_year': hotel['create_year'],
+            'rebuilding_year': hotel['rebuilding_year'],
+            'floors_count': hotel['floors_count'],
+            'nearby': [item['title'] for item in hotel['nearby']],
+            'user_rate': hotel['user_rate'],
+            'user_rate_detail': hotel['user_rate_detail'],
+        }
+
+
+        return information
+

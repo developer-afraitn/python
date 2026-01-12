@@ -3,7 +3,7 @@ import re
 from app.utils.main_helper import http_request, mask_bracketed, wrap_words, unmask_bracketed
 
 
-def is_remove_star_filter(text: str) -> bool:
+def is_remove_hotel_filter(text: str) -> bool:
     pattern = r'(حذف\s+فیلتر\s+هتل|فیلتر\s+هتل\s+(را|رو)?\s*حذف\s+کن)'
     return bool(re.search(pattern, text))
 
@@ -14,6 +14,7 @@ def hotels_list(city_id:int):
     #print(response)
 
     hotels = {item["name_fa"]: item["id"] for item in response.get("data", []) if item.get("name_fa") and item.get("id")}
+    #print(hotels)
 
     return hotels
 
@@ -28,7 +29,7 @@ class HotelExtractor:
         print('\n\n-----------------------------------------START HOTEL EXTRACTOR---------------------------------------------------\n\n')
         print(message)
         process_message,masked=mask_bracketed(message)
-        extract=is_remove_star_filter(process_message)
+        extract=is_remove_hotel_filter(process_message)
         if extract:
             processed_message=unmask_bracketed(process_message,masked)
             return processed_message,None

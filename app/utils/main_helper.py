@@ -14,7 +14,7 @@ def http_request(
     params: dict | None = None,
     data: dict | None = None,
     headers: dict | None = None,
-    timeout: int = 60,
+    timeout: int = 180,
 ):
     start_time = time.perf_counter()
 

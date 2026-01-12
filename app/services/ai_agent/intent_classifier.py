@@ -108,8 +108,8 @@ class IntentClassifier:
         print('db_len',db_len)
 
         intent = None
-        if db_len > 10:
-            intent = chromadb.ask(message,n_results=1)
+        if db_len > 2:
+            intent = chromadb.ask(message,n_results=3,where={"type": "talk"})
             if len(intent["ids"]):
                 intent=intent["metadatas"][0][0]['feature']
             else:

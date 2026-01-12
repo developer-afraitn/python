@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
-from typing import Any, Dict, List, Union
-
-from app.dispatch import dispatch
 from app.exceptions import AppError
 from app.jobs.hotel_filter_jobs import hotel_filter_process
 from app.services.ai_agent.hotel.city_extractor import CityExtractor
@@ -62,7 +57,7 @@ class HotelFilter:
         memory =Memory()
         user_memory_id, information = memory.info(user_id)
         if information is None:
-            information = {"city": None, "check_in": None, "check_out": None}
+            information = {"city_id": None, "check_in": None, "check_out": None}
 
         print(information)
         processed_message,city_extract=(CityExtractor()).extract(message=message, old_selected=[{"name": information["city_name"],"id": information["city_id"]}] if information.get("city_name") else None)
