@@ -1,4 +1,5 @@
 import json
+from typing import List
 
 from app.exceptions import AppError
 from app.services.ai_agent.hotel.city_extractor import CityExtractor
@@ -6,6 +7,7 @@ from app.services.ai_agent.hotel.hotel_extractor import HotelExtractor
 from app.services.ai_agent.hotel.memory import Memory
 from app.services.ai_agent.llm import Llm
 from app.storage.chromadb import ChromaDb
+from app.storage.repo.messageHistoryRepo import MessageHistoryRepo
 from app.utils.ai_response_message import success_message
 from app.utils.main_helper import http_request
 
@@ -85,8 +87,16 @@ class HotelComparison:
                         hotels.append(hotel)
                 result_ask_hotel.append(json.loads(find_hotel['documents'][0][0]))
 
-        prompt=f'با توجه به اطلاعات هتل به سوال کاربر پاسخ بده {result_ask_hotel}'
-        response = (Llm()).ollama_model(prompt, message)
+        prompt = (
+            "تو یک دستیار اطلاعات هتل‌ها هستی. "
+            "فقط بر اساس CONTEXT پاسخ بده و حدس نزن. "
+            "اگر پاسخ در CONTEXT نبود، دقیقاً بگو: «اطلاعات کافی در داده‌های موجود نیست.» "
+            "اگر سوال مقایسه‌ای است، مزایا/معایب هر هتل را فقط از روی داده‌ها کنار هم بگذار. "
+            f"CONTEXT:{result_ask_hotel}"
+        )
+
+        history = (MessageHistoryRepo()).get_recent_user_history(user_id=user_id, limit=10)
+        response = (Llm()).ollama_model(prompt, message,history)
         answer='جزییات هتل را میتوانید مشاهده و مقایسه کنید'
         if response["status_code"] == 200:
             answer=response["response"]["message"]["content"]

@@ -90,7 +90,7 @@ def ai_agent(payload: IntentRequest):
         case _:# greeting other
             exception_message ="سلام.من تورگردان هستم.ربات جستجوی هتل و پرواز."
             prompt='تو یک دستیار هوش مصنوعی هستی .نام تو تورگردان است.وظیفه تو جستجوی قیمت هتل و تور و پرواز است'
-            response = (Llm()).ollama_model(prompt,payload.message,True,exception_message)
+            response = (Llm()).ollama_model(prompt,payload.message,exception=True,exception_message=exception_message)
 
             return success_message(
                 message=response['content'],
