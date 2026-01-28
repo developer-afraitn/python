@@ -18,7 +18,6 @@ def talk_process(user_id,message):
     if response["status_code"] == 200:
         response = response['content']
 
-        print('model talk detectttttttttttttttttttttttt ',response)
         (ChromaDb()).save_list([
             {
                 # 'id': 125,

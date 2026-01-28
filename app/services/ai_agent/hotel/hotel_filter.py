@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.dispatch import dispatch
 from app.exceptions import AppError
 from app.jobs.hotel_filter_jobs import hotel_filter_process
 from app.services.ai_agent.hotel.city_extractor import CityExtractor
@@ -126,8 +127,8 @@ class HotelFilter:
         # persist
         memory.update(user_memory_id,user_id,information)
 
-        #dispatch(hotel_filter_process, user_id,message,information)
-        hotel_filter_process(user_id,message,information)
+        dispatch(hotel_filter_process, user_id,message,information, queue="low")
+        #hotel_filter_process(user_id,message,information)
         # required fields
         required_fields = {
             "city_name" : "شهر مشخص نیست",

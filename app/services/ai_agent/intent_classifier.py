@@ -123,8 +123,8 @@ class IntentClassifier:
             else:
                 intent=None
 
-        #dispatch(talk_process, message)
-        talk_process(user_id,message)
+        dispatch(talk_process, user_id,message, queue="low")
+        #talk_process(user_id,message)
 
         if intent is not None:
             return intent

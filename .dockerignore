@@ -1,0 +1,17 @@
+# پوشه‌های موقت یا کش
+__pycache__/
+*.pyc
+*.pyo
+
+# فایل‌های لوکال
+.env
+.local
+*.log
+
+# پوشه داده‌های بزرگ
+data/
+node_modules/
+
+# فایل‌های IDE
+.vscode/
+.idea/
