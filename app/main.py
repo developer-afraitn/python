@@ -1,6 +1,10 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from app.exceptions import AppError
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from starlette.requests import Request
 
 from app.storage.repair import repair_missing_tables
 
@@ -13,6 +17,8 @@ from app.routers.show_database import router as show_database_router
 repair_missing_tables()
 
 app = FastAPI(redirect_slashes=False)
+# اتصال به پوشه static برای فایل‌های استاتیک (مثل CSS)
+app.mount("/css", StaticFiles(directory="app/css"), name="css")
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError):
     return JSONResponse(

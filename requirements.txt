@@ -38,3 +38,6 @@ jdatetime
 chromadb #==0.5.5
 requests #==2.32.3
 #sentence-transformers
+
+# html
+jinja2

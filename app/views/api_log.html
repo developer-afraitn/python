@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لاگ api</title>
+    <link rel="stylesheet" href="/css/table.css">
+
+
+</head>
+<body>
+
+    <div class="container">
+        <h1>لاگ api</h1>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>شناسه</th>
+                    <th>متد</th>
+                    <th>لینک</th>
+                    <th>پارامتر</th>
+                    <th>بدنه</th>
+                    <th>هدر</th>
+                    <th>کد ریسپانس</th>
+                    <th>بدنه ریسپانس</th>
+                    <th>مدت زمان پاسخ</th>
+                    <th>زمان ایجاد</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for items in data %}
+                    <tr>
+                        <td>{{ items["id"] }}</td>
+                        <td>{{ items["method"] }}</td>
+                        <td>{{ items["url"] }}</td>
+                        <td>{{ items["params"] }}</td>
+                        <td>{{ items["request_body"] }}</td>
+                        <td>{{ items["headers"] }}</td>
+                        <td>{{ items["status_code"] }}</td>
+                        <td>{{ items["response"] }}</td>
+                        <td>{{ items["duration_ms"] }}</td>
+                        <td>{{ items["created_at"] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <hr>
+
+        <div class="pagination">
+            {% if page > 1 %}
+                <a href="/db/api_log?page={{ page - 1 }}">قبلی</a>
+            {% endif %}
+
+            <span>صفحه {{ page }}</span>
+
+            <a href="/db/api_log?page={{ page + 1 }}">بعدی</a>
+        </div>
+    </div>
+</body>
+</html>

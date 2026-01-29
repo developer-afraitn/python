@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لینک‌های دیتابیس</title>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "Vazirmatn", sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #4f46e5, #0ea5e9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: #ffffff;
+            width: 95%;
+            max-width: 800px;
+            padding: 30px 25px;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .container h1 {
+            font-size: 22px;
+            margin-bottom: 25px;
+            color: #1e293b;
+        }
+
+        .links {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .links a {
+            display: block;
+            padding: 14px;
+            background: #f1f5f9;
+            color: #0f172a;
+            text-decoration: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .links a:hover {
+            background: #e0f2fe;
+            border-color: #38bdf8;
+            color: #0369a1;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(56, 189, 248, 0.4);
+        }
+
+        footer {
+            margin-top: 25px;
+            font-size: 13px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📊 لینک‌های مدیریت دیتابیس</h1>
+
+        <div class="links">
+            <a href="/db/message_history">تاریخچه</a>
+            <a href="/db/memory">حافظه</a>
+            <a href="/db/api_log">لاک api</a>
+            <a href="/db/chromadb">وکتور کروما</a>
+        </div>
+
+        <footer>
+            طراحی شده برای پنل مدیریت
+        </footer>
+    </div>
+
+</body>
+</html>

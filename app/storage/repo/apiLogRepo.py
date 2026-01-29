@@ -35,7 +35,6 @@ class ApiLogRepo:
 
     def list(
         self,
-        *,
         page: int = 1,
         limit: int = 20
     ) -> list[dict]:
