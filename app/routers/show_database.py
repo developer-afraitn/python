@@ -13,7 +13,7 @@ api_log_repo = ApiLogRepo()
 
 templates = Jinja2Templates(directory="app/views")
 
-@router.get("")
+@router.get("/")
 def show_database(request: Request):
         return templates.TemplateResponse("tables.html",{"request": request})
 
