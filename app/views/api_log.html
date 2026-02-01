@@ -34,13 +34,13 @@
                         <td>{{ items["id"] }}</td>
                         <td>{{ items["method"] }}</td>
                         <td>{{ items["url"] }}</td>
-                        <td>{{ items["params"] }}</td>
-                        <td>{{ items["request_body"] }}</td>
+                        <td><span tooltip title="{{items['params']}}">{{ items["params"] |shorten_string(50) }}</span></td>
+                        <td><span tooltip title="{{items['request_body']}}">{{ items["request_body"] |shorten_string(50) }}</span></td>
                         <td>{{ items["headers"] }}</td>
                         <td>{{ items["status_code"] }}</td>
-                        <td>{{ items["response"] }}</td>
+                        <td><span tooltip title="{{items['response']}}">{{ items["response"] |shorten_string(50) }}</span></td>
                         <td>{{ items["duration_ms"] }}</td>
-                        <td>{{ items["created_at"] }}</td>
+                        <td>{{ items["created_at"] | gregorian_to_jalali("l j F Y H:i:s") }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

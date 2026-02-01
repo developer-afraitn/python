@@ -6,6 +6,9 @@ from app.storage.repo.apiLogRepo import ApiLogRepo
 from fastapi.templating import Jinja2Templates
 import os
 
+from app.utils.datetime_helper import gregorian_to_jalali
+from app.utils.main_helper import shorten_string
+
 router = APIRouter()
 memory_repo = MemoryRepo()
 message_history_repo = MessageHistoryRepo()
@@ -13,6 +16,8 @@ api_log_repo = ApiLogRepo()
 
 
 templates = Jinja2Templates(directory="app/views")
+templates.env.filters["gregorian_to_jalali"] = gregorian_to_jalali
+templates.env.filters["shorten_string"] = shorten_string
 
 @router.get("/")
 def show_database(request: Request):

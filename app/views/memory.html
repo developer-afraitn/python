@@ -28,11 +28,9 @@
                     <tr>
                         <td>{{ items["id"] }}</td>
                         <td>{{ items["user_id"] }}</td>
-                        <td>
-                            {{ items.information }}
-                        </td>
-                        <td>{{ items["created_at"] }}</td>
-                        <td>{{ items["updated_at"] }}</td>
+                        <td><span tooltip title="{{items['information']}}">{{ items["information"] |shorten_string(50) }}</span></td>
+                        <td>{{ items["created_at"] | gregorian_to_jalali("l j F Y H:i:s") }}</td>
+                        <td>{{ items["updated_at"] | gregorian_to_jalali("l j F Y H:i:s") }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

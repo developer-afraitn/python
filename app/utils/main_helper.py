@@ -112,3 +112,20 @@ def unmask_bracketed(text: str, mapping: dict):
         pattern = re.compile(re.escape(key), re.IGNORECASE)
         text = pattern.sub(f"[{value}]", text)
     return text
+
+
+def shorten_string(text: str, length: int = 15) -> str:
+    """
+    متن رو تا طول مشخص کوتاه می‌کنه و اگه طولش بیشتر بود ... اضافه می‌کنه
+    """
+
+    if not text:
+        return ""
+
+    if not isinstance(text, str):
+        text = str(text)
+
+    if len(text) <= length:
+        return text
+
+    return text[:length].rstrip() + "..."

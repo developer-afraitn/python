@@ -29,8 +29,8 @@
                         <td>{{ items["id"] }}</td>
                         <td>{{ items["user_id"] }}</td>
                         <td>{{ items["role"] }}</td>
-                        <td>{{ items["content"] }}</td>
-                        <td>{{ items["created_at"] }}</td>
+                        <td><span tooltip title="{{items['content']}}">{{ items["content"] |shorten_string(100) }}</span></td>
+                        <td>{{ items["created_at"] | gregorian_to_jalali("l j F Y H:i:s") }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

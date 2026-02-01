@@ -65,6 +65,17 @@ def gregorian_to_jalali(gregorian: str, fmt: str) -> str:
       - 'YYYY-MM-DD HH:MM:SS'
     fmt: PHP-like (subset): l j F Y H:i:s  + escape with backslash like PHP
     """
+
+    # اگر datetime بود → تبدیل به str
+    if isinstance(gregorian, datetime):
+        gregorian = gregorian.strftime("%Y-%m-%d %H:%M:%S")
+
+    # اگر str بود → تمیزش کن
+    if isinstance(gregorian, str):
+        gregorian = gregorian.strip()
+
+
+
     g = gregorian.strip()
     if " " in g:
         gdt = datetime.fromisoformat(g)
