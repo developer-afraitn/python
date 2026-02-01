@@ -4,6 +4,7 @@ from app.storage.repo.memoryRepo import MemoryRepo
 from app.storage.repo.messageHistoryRepo import MessageHistoryRepo
 from app.storage.repo.apiLogRepo import ApiLogRepo
 from fastapi.templating import Jinja2Templates
+import os
 
 router = APIRouter()
 memory_repo = MemoryRepo()
@@ -15,7 +16,13 @@ templates = Jinja2Templates(directory="app/views")
 
 @router.get("/")
 def show_database(request: Request):
-        return templates.TemplateResponse("tables.html",{"request": request})
+        return templates.TemplateResponse(
+            "tables.html",
+            {
+                "request": request,
+                "url_prefix": os.getenv("URL_PREFIX")
+            }
+        )
 
 @router.get("/db/message_history")
 def message_history(request: Request,page: int = Query(1, ge=1)):
