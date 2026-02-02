@@ -12,8 +12,9 @@ class MessageHistory(Base):
     message: Mapped[str] = mapped_column(String(4000))
     processed_message: Mapped[str | None] = mapped_column(String(4000), nullable=True)
     response: Mapped[str | None] = mapped_column(String(4000), nullable=True)
+    response_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     duration: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
 Index("ix_chat_user_time", MessageHistory.user_id, MessageHistory.created_at)

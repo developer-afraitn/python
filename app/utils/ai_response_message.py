@@ -17,6 +17,8 @@ def success_message(
     history_repo.update(id=history_info['id'],
                         updates={
                             "response": message,
+                            "response_type": type,
+                            "processed_message": history_info['processed_message'],
                             "duration": duration_ms,
                         }
     )

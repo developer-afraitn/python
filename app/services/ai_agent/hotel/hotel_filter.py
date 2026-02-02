@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.configs.state import history_info
 from app.dispatch import dispatch
 from app.exceptions import AppError
 from app.jobs.hotel_filter_jobs import hotel_filter_process
@@ -171,6 +172,8 @@ class HotelFilter:
         message=self.hotel_filter_summary_text(information)
         if information.get("hotel") is not None:
             information['hotel'] = [item["id"] for item in information['hotel']]
+
+        history_info["processed_message"] = processed_message
 
         return success_message(
             message=message,

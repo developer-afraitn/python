@@ -18,9 +18,13 @@
                 <tr>
                     <th>شناسه</th>
                     <th>کاربر</th>
-                    <th>نقش</th>
                     <th>پیام</th>
+                    <th>پردازش</th>
+                    <th>پاسخ</th>
+                    <th>نوع پاسخ</th>
+                    <th>مدت زمان اجرا</th>
                     <th>تاریخ ایجاد</th>
+                    <th>تاریخ ویرایش</th>
                 </tr>
             </thead>
             <tbody>
@@ -28,9 +32,13 @@
                     <tr>
                         <td>{{ items["id"] }}</td>
                         <td>{{ items["user_id"] }}</td>
-                        <td>{{ items["role"] }}</td>
-                        <td><span tooltip title="{{items['content']}}">{{ items["content"] |shorten_string(100) }}</span></td>
+                        <td><span tooltip title="{{items['message']}}">{{ items["message"] |shorten_string(1000) }}</span></td>
+                        <td><span tooltip title="{{items['processed_message']}}">{{ items["processed_message"] |shorten_string(1000) }}</span></td>
+                        <td><span tooltip title="{{items['response']}}">{{ items["response"] |shorten_string(1000) }}</span></td>
+                        <td>{{ items["response_type"] }}</td>
+                        <td>{{ items["duration"] }}</td>
                         <td>{{ items["created_at"] | gregorian_to_jalali("l j F Y H:i:s") }}</td>
+                        <td>{{ items["updated_at"] | gregorian_to_jalali("l j F Y H:i:s") }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

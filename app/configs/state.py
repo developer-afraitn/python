@@ -2,5 +2,6 @@ import time
 
 history_info = {
     "id": 0,
-    "start_time": 0
+    "start_time": 0,
+    "processed_message": ""
 }
