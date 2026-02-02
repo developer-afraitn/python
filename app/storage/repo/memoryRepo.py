@@ -21,7 +21,7 @@ class MemoryRepo:
             row.information = information
             row.updated_at = func.now()
             db.add(row)
-            db.flush()
+            db.commit()
             db.refresh(row)
             return row
 

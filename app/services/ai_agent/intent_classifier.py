@@ -284,5 +284,4 @@ class IntentService:
         #     message=message,
         #     history=history,
         # )
-        history_repo.create(user_id=user_id, content=message)
         return intent

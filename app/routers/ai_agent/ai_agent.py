@@ -1,13 +1,18 @@
 from __future__ import annotations
+
+import time
+
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, field_validator
 from app.logging_config import get_logger
 from app.services.ai_agent.hotel.memory import Memory
+from app.configs.state import history_info
 
 from app.services.ai_agent.intent_classifier import IntentService
 from app.services.ai_agent.hotel.hotel_filter import HotelFilter
 from app.services.ai_agent.hotel.hotel_comparison import HotelComparison
 from app.services.ai_agent.llm import Llm
+from app.storage.repo.messageHistoryRepo import MessageHistoryRepo
 from app.utils.ai_response_message import success_message
 
 router = APIRouter()
@@ -39,6 +44,7 @@ class IntentResponse(BaseModel):
 #from app.dispatch import dispatch
 @router.post("/ai")
 def ai_agent(payload: IntentRequest):
+    history_info["start_time"] = time.time()
     #dispatch(do_something, 1234333356,'aliiiii', queue="low") use queue
     #dispatch(do_something, user_id=1234333356,name='aliiiiieeeee', queue="low")
     print('-----------------------------------------START---------------------------------------------------')
@@ -47,8 +53,11 @@ def ai_agent(payload: IntentRequest):
     print('payload',payload)
     print('user_memory_id',user_memory_id)
     print('information',information)
+    history_repo = MessageHistoryRepo()
 
     intent = intent_service.detect_intent(user_id=payload.user_id, message=payload.message)
+    histories=history_repo.create(user_id=payload.user_id, message=payload.message)
+    history_info["id"] = histories.id
     #return 'ok'
     print('intent',intent)
     match intent:

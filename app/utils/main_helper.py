@@ -16,7 +16,7 @@ def http_request(
     headers: dict | None = None,
     timeout: int = 180,
 ):
-    start_time = time.perf_counter()
+    start_time = time.time()
 
     try:
         response = requests.request(
@@ -40,7 +40,7 @@ def http_request(
         parsed_response = {"error": str(e)}
         status_code = None
 
-    duration_ms = int((time.perf_counter() - start_time) * 1000)
+    duration_ms = int((time.time() - start_time) * 1000)
 
     # ذخیره لاگ در DB
     api_log_repo = ApiLogRepo()

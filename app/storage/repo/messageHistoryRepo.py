@@ -1,27 +1,28 @@
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 from app.storage.db import get_session
 from app.storage.models.messageHistoryModel import MessageHistory
 
 class MessageHistoryRepo:
-    def create(self, *, user_id: str, content: str) -> MessageHistory:
+    def create(self, *, user_id: str, message: str) -> MessageHistory:
         user_id = user_id.strip()
-        content = content.strip()
-        if not user_id or not content:
-            raise ValueError("user_id and content are required")
+        message = message.strip()
+        if not user_id or not message:
+            raise ValueError("user_id and message are required")
 
         with get_session() as db:
-            row = MessageHistory(user_id=user_id, role="user", content=content)
+            row = MessageHistory(user_id=user_id, message=message)
             db.add(row)
-            db.flush()
+            db.commit()
+            #db.flush()
             db.refresh(row)
             return row
 
     def get_recent_user_history(self, user_id: str, limit: int = 5) -> list[str]:
         with get_session() as db:
             stmt = (
-                select(MessageHistory.content)
+                select(MessageHistory.message)
                 .where(MessageHistory.user_id == user_id)
-                .where(MessageHistory.role == "user")
+                #.where(MessageHistory.role == "user")
                 .order_by(desc(MessageHistory.id))
                 .limit(limit)
             )
@@ -44,3 +45,21 @@ class MessageHistoryRepo:
                 {col.name: getattr(o, col.name) for col in MessageHistory.__table__.columns}
                 for o in objs
             ]
+
+
+    def update(self, *, id: int, updates: dict) -> MessageHistory | None:
+        with get_session() as db:
+            row = db.get(MessageHistory, id)
+            if row is None:
+                return None
+
+            # ویرایش هر ستونی که در updates آمده
+            for key, value in updates.items():
+                if hasattr(row, key):  # بررسی اینکه ستون وجود دارد
+                    setattr(row, key, value)
+
+            row.updated_at = func.now()
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+            return row
